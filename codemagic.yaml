@@ -1,10 +1,15 @@
 workflows:
-  ios-first-build:
-    name: Get In Bitches - iOS First Build
+  ios-app-store:
+    name: Get In Bitches - App Store Upload
     max_build_duration: 120
     instance_type: mac_mini_m2
 
+    integrations:
+      app_store_connect: "Codemagic MINR"
+
     environment:
+      groups:
+        - minr_app_store
       node: v22.11.0
       xcode: latest
       cocoapods: default
@@ -16,7 +21,7 @@ workflows:
 
       - name: Generate iOS project
         script: |
-          npx expo prebuild --platform ios
+          npx expo prebuild --platform ios --clean
 
       - name: Install CocoaPods
         script: |
@@ -37,22 +42,48 @@ workflows:
             -list \
             -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')
 
+          if [ -z "$SCHEME" ]; then
+            echo "ERROR: No Xcode scheme found"
+            exit 1
+          fi
+
           echo "Workspace: $WORKSPACE"
           echo "Scheme: $SCHEME"
 
           echo "CM_XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
           echo "CM_XCODE_SCHEME=$SCHEME" >> "$CM_ENV"
 
-      - name: Build unsigned iOS app
+      - name: Initialize signing keychain
         script: |
-          xcodebuild \
-            -workspace "$CM_XCODE_WORKSPACE" \
-            -scheme "$CM_XCODE_SCHEME" \
-            -configuration Debug \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          keychain initialize
+
+      - name: Fetch or create App Store signing files
+        script: |
+          app-store-connect fetch-signing-files "app.getinbitches" \
+            --type IOS_APP_STORE \
+            --create
+
+      - name: Install signing certificate
+        script: |
+          keychain add-certificates
+
+      - name: Apply provisioning profile
+        script: |
+          xcode-project use-profiles
+
+      - name: Build signed App Store IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_XCODE_WORKSPACE" \
+            --scheme "$CM_XCODE_SCHEME"
 
     artifacts:
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
