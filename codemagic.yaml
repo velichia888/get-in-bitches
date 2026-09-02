@@ -1,0 +1,58 @@
+workflows:
+  ios-first-build:
+    name: Get In Bitches - iOS First Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    environment:
+      node: v22.11.0
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Generate iOS project
+        script: |
+          npx expo prebuild --platform ios
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+
+      - name: Detect Xcode workspace and scheme
+        script: |
+          WORKSPACE=$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name "*.xcworkspace" | head -1)
+
+          if [ -z "$WORKSPACE" ]; then
+            echo "ERROR: No Xcode workspace found"
+            exit 1
+          fi
+
+          SCHEME=$(xcodebuild \
+            -workspace "$WORKSPACE" \
+            -list \
+            -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')
+
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme: $SCHEME"
+
+          echo "CM_XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
+          echo "CM_XCODE_SCHEME=$SCHEME" >> "$CM_ENV"
+
+      - name: Build unsigned iOS app
+        script: |
+          xcodebuild \
+            -workspace "$CM_XCODE_WORKSPACE" \
+            -scheme "$CM_XCODE_SCHEME" \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+    artifacts:
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
