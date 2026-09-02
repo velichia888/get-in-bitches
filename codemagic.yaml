@@ -8,8 +8,10 @@ workflows:
       app_store_connect: "Codemagic MINR"
 
     environment:
-      groups:
-        - minr_app_store
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.getinbitches
+
       node: v22.11.0
       xcode: latest
       cocoapods: default
@@ -28,50 +30,26 @@ workflows:
           cd ios
           pod install
 
-      - name: Detect Xcode workspace and scheme
+      - name: Detect workspace and scheme
         script: |
           WORKSPACE=$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name "*.xcworkspace" | head -1)
-
-          if [ -z "$WORKSPACE" ]; then
-            echo "ERROR: No Xcode workspace found"
-            exit 1
-          fi
 
           SCHEME=$(xcodebuild \
             -workspace "$WORKSPACE" \
             -list \
             -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')
 
-          if [ -z "$SCHEME" ]; then
-            echo "ERROR: No Xcode scheme found"
-            exit 1
-          fi
+          echo "CM_XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
+          echo "CM_XCODE_SCHEME=$SCHEME" >> "$CM_ENV"
 
           echo "Workspace: $WORKSPACE"
           echo "Scheme: $SCHEME"
 
-          echo "CM_XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
-          echo "CM_XCODE_SCHEME=$SCHEME" >> "$CM_ENV"
-
-      - name: Initialize signing keychain
-        script: |
-          keychain initialize
-
-      - name: Fetch or create App Store signing files
-        script: |
-          app-store-connect fetch-signing-files "app.getinbitches" \
-            --type IOS_APP_STORE \
-            --create
-
-      - name: Install signing certificate
-        script: |
-          keychain add-certificates
-
-      - name: Apply provisioning profile
+      - name: Apply App Store signing
         script: |
           xcode-project use-profiles
 
-      - name: Build signed App Store IPA
+      - name: Build signed IPA
         script: |
           xcode-project build-ipa \
             --workspace "$CM_XCODE_WORKSPACE" \
