@@ -8,7 +8,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.getinbitches",
+      "bundleIdentifier": "com.getinbitches.app",
       "buildNumber": "1",
       "icon": "./assets/icon.png",
       "config": {
@@ -16,7 +16,7 @@
       }
     },
     "android": {
-      "package": "app.getinbitches"
+      "package": "com.getinbitches.app"
     }
   }
 }

@@ -10,7 +10,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: app.getinbitches
+        bundle_identifier: com.getinbitches.app
 
       node: v22.11.0
       xcode: latest
