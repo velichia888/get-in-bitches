@@ -33,11 +33,7 @@ workflows:
       - name: Detect workspace and scheme
         script: |
           WORKSPACE=$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name "*.xcworkspace" | head -1)
-
-          SCHEME=$(xcodebuild \
-            -workspace "$WORKSPACE" \
-            -list \
-            -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
 
           echo "CM_XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
           echo "CM_XCODE_SCHEME=$SCHEME" >> "$CM_ENV"
@@ -47,13 +43,24 @@ workflows:
 
       - name: Apply App Store signing
         script: |
-          xcode-project use-profiles
+          xcode-project use-profiles \
+            --custom-export-options='{"method":"app-store-connect"}'
+
+          EXPORT_METHOD=$(/usr/libexec/PlistBuddy -c "Print :method" "$HOME/export_options.plist")
+          echo "Export method: $EXPORT_METHOD"
+
+          if [ "$EXPORT_METHOD" != "app-store-connect" ]; then
+            /usr/libexec/PlistBuddy \
+              -c "Set :method app-store-connect" \
+              "$HOME/export_options.plist"
+          fi
 
       - name: Build signed IPA
         script: |
           xcode-project build-ipa \
             --workspace "$CM_XCODE_WORKSPACE" \
-            --scheme "$CM_XCODE_SCHEME"
+            --scheme "$CM_XCODE_SCHEME" \
+            --export-options-plist "$HOME/export_options.plist"
 
     artifacts:
       - build/ios/ipa/*.ipa
