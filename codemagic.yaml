@@ -52,7 +52,7 @@ workflows:
             -string app-store-connect \
             "$HOME/export_options.plist"
 
-          echo "Validating export options plist:"
+          echo "Validate export plist:"
           /usr/bin/plutil -lint "$HOME/export_options.plist"
 
           echo "Export method:"
@@ -62,9 +62,38 @@ workflows:
 
       - name: Build signed IPA
         script: |
-          xcode-project build-ipa \
-            --workspace "$CM_XCODE_WORKSPACE" \
-            --scheme "$CM_XCODE_SCHEME"
+          set -euo pipefail
+
+          ARCHIVE_PATH="$CM_BUILD_DIR/build/ios/xcarchive/GetInBitches.xcarchive"
+          EXPORT_PATH="$CM_BUILD_DIR/build/ios/ipa"
+
+          mkdir -p "$(dirname "$ARCHIVE_PATH")"
+          mkdir -p "$EXPORT_PATH"
+
+          echo "Archiving $CM_XCODE_SCHEME..."
+
+          xcodebuild \
+            -workspace "$CM_XCODE_WORKSPACE" \
+            -scheme "$CM_XCODE_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            archive \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            DEVELOPMENT_TEAM=4357L599UW \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+
+          echo "Archive completed. Exporting IPA..."
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$HOME/export_options.plist"
+
+          echo "Export complete:"
+          ls -lah "$EXPORT_PATH"
 
     artifacts:
       - build/ios/ipa/*.ipa
