@@ -45,15 +45,20 @@ workflows:
         script: |
           xcode-project use-profiles
 
-          echo "Original export method:"
-          /usr/libexec/PlistBuddy -c "Print :method" "$HOME/export_options.plist"
+          /usr/bin/plutil -convert xml1 "$HOME/export_options.plist"
 
-          /usr/libexec/PlistBuddy \
-            -c "Set :method app-store-connect" \
+          /usr/bin/plutil \
+            -replace method \
+            -string app-store-connect \
             "$HOME/export_options.plist"
 
-          echo "Updated export method:"
-          /usr/libexec/PlistBuddy -c "Print :method" "$HOME/export_options.plist"
+          echo "Validating export options plist:"
+          /usr/bin/plutil -lint "$HOME/export_options.plist"
+
+          echo "Export method:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :method" \
+            "$HOME/export_options.plist"
 
       - name: Build signed IPA
         script: |
