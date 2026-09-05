@@ -147,10 +147,16 @@ workflows:
 
   # Produces real App Store screenshots from the actual running app,
   # replacing the fabricated marketing mockups that got the first
-  # submission rejected. Logs in via a deep link to app/test-login.tsx
-  # (only active when EXPO_PUBLIC_IOS_TEST_AUTOMATION=1, so it's inert in
-  # the real ios-app-store build above) against two seeded demo accounts
-  # already in Supabase, then navigates via deep links between screens.
+  # submission rejected. components/TestAutomationRunner.tsx (only active
+  # when EXPO_PUBLIC_IOS_TEST_AUTOMATION=1, so it's inert in the real
+  # ios-app-store build above) signs into a seeded demo account and
+  # drives its own tour of the app on an internal timer, logging one
+  # marker per screen for this script to poll for and screenshot after.
+  #
+  # This deliberately does NOT use deep links (xcrun simctl openurl) for
+  # in-app navigation: iOS shows a blocking "Open in <App>?" system
+  # confirmation for custom URL schemes that no CI script can dismiss,
+  # which silently stalled every attempt at that approach.
   ios-simulator:
     name: Get In Bitches iOS Simulator
     instance_type: mac_mini_m2
@@ -162,10 +168,11 @@ workflows:
         EXPO_PUBLIC_SUPABASE_URL: https://xeyfdyzspspcmyrhqmnb.supabase.co
         EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_6CN0UloP5qGirRVds3QzlQ_W64esp7p
         EXPO_PUBLIC_IOS_TEST_AUTOMATION: "1"
-        # Screenshot-only demo accounts, seeded directly in Supabase -
-        # not real users, no real ride/payment data.
-        DEMO_EMAIL: gibscreenshot.demo@gmail.com
-        DEMO_PASSWORD: ScreenshotDemo123!
+        # Screenshot-only demo account, seeded directly in Supabase - not
+        # a real user, no real ride/payment data. EXPO_PUBLIC_ prefix so
+        # TestAutomationRunner can read it via process.env.
+        EXPO_PUBLIC_DEMO_EMAIL: gibscreenshot.demo@gmail.com
+        EXPO_PUBLIC_DEMO_PASSWORD: ScreenshotDemo123!
       node: v22.11.0
       xcode: latest
       cocoapods: default
@@ -229,45 +236,36 @@ workflows:
           mkdir -p "$CM_BUILD_DIR/simulator-artifacts"
           LOGFILE="$CM_BUILD_DIR/simulator-artifacts/app-console.log"
 
-          wait_for_launch_marker() {
+          wait_for_marker() {
+            local marker="$1"
             local waited=0
-            until grep -q "IOS_TEST_APP_LAUNCHED" "$LOGFILE" 2>/dev/null; do
+            until grep -q "$marker" "$LOGFILE" 2>/dev/null; do
               sleep 1
               waited=$((waited + 1))
-              if [ "$waited" -ge 45 ]; then
-                echo "Timed out waiting for IOS_TEST_APP_LAUNCHED after ${waited}s"
+              if [ "$waited" -ge 30 ]; then
+                echo "Timed out waiting for $marker after ${waited}s"
                 break
               fi
             done
           }
 
-          SIMCTL_CHILD_IOS_TEST_AUTOMATION="1" \
-            xcrun simctl launch --console-pty "$DEVICE_ID" com.getinbitches.app \
-              > "$LOGFILE" 2>&1 &
+          xcrun simctl launch --console-pty "$DEVICE_ID" com.getinbitches.app \
+            > "$LOGFILE" 2>&1 &
           LAUNCH_PID=$!
-          sleep 3
 
-          # Screen 1: Home, signed in as a rider requesting a ride.
-          xcrun simctl openurl "$DEVICE_ID" "getinbitches://test-login?email=$DEMO_EMAIL&password=$DEMO_PASSWORD&role=rider"
-          wait_for_launch_marker
+          # TestAutomationRunner drives its own tour on an internal
+          # timer (see its comments for why) - just wait for each
+          # stage's marker and screenshot right after.
+          wait_for_marker "IOS_TEST_STAGE_1_HOME_RIDER"
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/01_home_rider.png"
 
-          # Screen 2: Safety Center.
-          xcrun simctl openurl "$DEVICE_ID" "getinbitches://safety"
-          sleep 2
+          wait_for_marker "IOS_TEST_STAGE_2_SAFETY"
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/02_safety.png"
 
-          # Screen 3: Profile.
-          xcrun simctl openurl "$DEVICE_ID" "getinbitches://profile"
-          sleep 2
+          wait_for_marker "IOS_TEST_STAGE_3_PROFILE"
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/03_profile.png"
 
-          # Screen 4: Home again, switched to driver - shows the seeded
-          # open ride request from the other demo account.
-          xcrun simctl openurl "$DEVICE_ID" "getinbitches://test-login?email=$DEMO_EMAIL&password=$DEMO_PASSWORD&role=driver"
-          wait_for_launch_marker
-          xcrun simctl openurl "$DEVICE_ID" "getinbitches://"
-          sleep 2
+          wait_for_marker "IOS_TEST_STAGE_4_HOME_DRIVER"
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/04_home_driver.png"
 
           kill "$LAUNCH_PID" 2>/dev/null || true
