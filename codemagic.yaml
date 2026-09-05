@@ -168,6 +168,12 @@ workflows:
         EXPO_PUBLIC_SUPABASE_URL: https://xeyfdyzspspcmyrhqmnb.supabase.co
         EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_6CN0UloP5qGirRVds3QzlQ_W64esp7p
         EXPO_PUBLIC_IOS_TEST_AUTOMATION: "1"
+        # Renders a live status banner in the running app so screenshots
+        # show exactly what stage TestAutomationRunner reached, since
+        # console.log doesn't reliably reach this workflow's captured
+        # output in Release builds. Turn off once timing is confirmed
+        # reliable, for clean screenshots to actually use.
+        EXPO_PUBLIC_IOS_TEST_DEBUG_BANNER: "1"
         # Screenshot-only demo account, seeded directly in Supabase - not
         # a real user, no real ride/payment data. EXPO_PUBLIC_ prefix so
         # TestAutomationRunner can read it via process.env.
@@ -236,36 +242,27 @@ workflows:
           mkdir -p "$CM_BUILD_DIR/simulator-artifacts"
           LOGFILE="$CM_BUILD_DIR/simulator-artifacts/app-console.log"
 
-          wait_for_marker() {
-            local marker="$1"
-            local waited=0
-            until grep -q "$marker" "$LOGFILE" 2>/dev/null; do
-              sleep 1
-              waited=$((waited + 1))
-              if [ "$waited" -ge 30 ]; then
-                echo "Timed out waiting for $marker after ${waited}s"
-                break
-              fi
-            done
-          }
-
           xcrun simctl launch --console-pty "$DEVICE_ID" com.getinbitches.app \
             > "$LOGFILE" 2>&1 &
           LAUNCH_PID=$!
 
-          # TestAutomationRunner drives its own tour on an internal
-          # timer (see its comments for why) - just wait for each
-          # stage's marker and screenshot right after.
-          wait_for_marker "IOS_TEST_STAGE_1_HOME_RIDER"
+          # Release-mode Hermes doesn't reliably forward console.log to
+          # this captured output (confirmed empirically - screenshots
+          # only ever differed by coincidence of a marker-polling
+          # timeout's dead-wait window overlapping real progress), so
+          # this can't synchronize on log markers. TestAutomationRunner's
+          # own internal timer is deterministic, so fixed sleeps timed
+          # generously against that schedule are what actually works.
+          sleep 45
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/01_home_rider.png"
 
-          wait_for_marker "IOS_TEST_STAGE_2_SAFETY"
+          sleep 12
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/02_safety.png"
 
-          wait_for_marker "IOS_TEST_STAGE_3_PROFILE"
+          sleep 12
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/03_profile.png"
 
-          wait_for_marker "IOS_TEST_STAGE_4_HOME_DRIVER"
+          sleep 15
           xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/04_home_driver.png"
 
           kill "$LAUNCH_PID" 2>/dev/null || true
