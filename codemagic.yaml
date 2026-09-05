@@ -189,11 +189,16 @@ workflows:
           WORKSPACE=$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name "*.xcworkspace" | head -1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
 
+          # Release, not Debug: a Debug+simulator build expects a live
+          # Metro packager to fetch JS from at runtime ("No script URL
+          # provided") - there is none in CI, so nothing ever ran. Release
+          # always embeds the JS bundle at build time regardless of
+          # platform, which is what a standalone CI screenshot run needs.
           xcodebuild build \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -sdk iphonesimulator \
-            -configuration Debug \
+            -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$CM_BUILD_DIR/derived-data" \
             CODE_SIGN_IDENTITY="" \
@@ -217,7 +222,7 @@ workflows:
           xcrun simctl bootstatus "$DEVICE_ID" -b
           sleep 5
 
-          APP_PATH=$(find "$CM_BUILD_DIR/derived-data/Build/Products/Debug-iphonesimulator" -maxdepth 1 -name "*.app" | head -1)
+          APP_PATH=$(find "$CM_BUILD_DIR/derived-data/Build/Products/Release-iphonesimulator" -maxdepth 1 -name "*.app" | head -1)
           xcrun simctl install "$DEVICE_ID" "$APP_PATH"
           xcrun simctl privacy "$DEVICE_ID" grant location-always com.getinbitches.app || true
 
