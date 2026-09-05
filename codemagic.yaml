@@ -14,6 +14,12 @@ workflows:
 
       vars:
         BUNDLE_ID: com.getinbitches.app
+        # get-latest-app-store-build-number needs the numeric App Store
+        # Connect app id, not the bundle id - passing the bundle id 404s
+        # ("no resource of type 'apps' with id 'com.getinbitches.app'")
+        # and silently falls back to build number 1, colliding with any
+        # build already uploaded.
+        APP_STORE_CONNECT_APP_ID: "6806875083"
         # Public/anon-scoped Supabase config - safe to keep in plain vars
         # since access is governed by Row Level Security, not secrecy of
         # these values. EXPO_PUBLIC_ prefix makes Expo inline them into
@@ -36,7 +42,14 @@ workflows:
           # Connect had already seen (the rejected 2.1.0 submission) --
           # every upload needs a strictly higher CFBundleVersion, so pull
           # the last-accepted number and increment it instead of hardcoding.
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID" || echo 0)
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_CONNECT_APP_ID" || echo 0)
+          # Floor of 2 regardless of what the lookup returns: build "2" is
+          # already known to be live on App Store Connect (the rejected
+          # placeholder submission), so no computed value should ever let
+          # this dip below 3.
+          if [ "$LATEST_BUILD_NUMBER" -lt 2 ]; then
+            LATEST_BUILD_NUMBER=2
+          fi
           NEW_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
           echo "Setting iOS build number to $NEW_BUILD_NUMBER"
 
