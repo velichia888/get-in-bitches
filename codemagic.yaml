@@ -12,6 +12,9 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.getinbitches.app
 
+      vars:
+        BUNDLE_ID: com.getinbitches.app
+
       node: v22.11.0
       xcode: latest
       cocoapods: default
@@ -20,6 +23,23 @@ workflows:
       - name: Install dependencies
         script: |
           npm ci
+
+      - name: Bump iOS build number
+        script: |
+          # app.json's ios.buildNumber was a static "2", which App Store
+          # Connect had already seen (the rejected 2.1.0 submission) --
+          # every upload needs a strictly higher CFBundleVersion, so pull
+          # the last-accepted number and increment it instead of hardcoding.
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID" || echo 0)
+          NEW_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          echo "Setting iOS build number to $NEW_BUILD_NUMBER"
+
+          NEW_BUILD_NUMBER="$NEW_BUILD_NUMBER" node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            config.expo.ios.buildNumber = process.env.NEW_BUILD_NUMBER;
+            fs.writeFileSync('app.json', JSON.stringify(config, null, 2) + '\n');
+          "
 
       - name: Generate iOS project
         script: |
