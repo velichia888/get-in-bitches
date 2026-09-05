@@ -144,3 +144,131 @@ workflows:
         auth: integration
         submit_to_testflight: false
         submit_to_app_store: false
+
+  # Produces real App Store screenshots from the actual running app,
+  # replacing the fabricated marketing mockups that got the first
+  # submission rejected. Logs in via a deep link to app/test-login.tsx
+  # (only active when EXPO_PUBLIC_IOS_TEST_AUTOMATION=1, so it's inert in
+  # the real ios-app-store build above) against two seeded demo accounts
+  # already in Supabase, then navigates via deep links between screens.
+  ios-simulator:
+    name: Get In Bitches iOS Simulator
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: .
+
+    environment:
+      vars:
+        EXPO_PUBLIC_SUPABASE_URL: https://xeyfdyzspspcmyrhqmnb.supabase.co
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_6CN0UloP5qGirRVds3QzlQ_W64esp7p
+        EXPO_PUBLIC_IOS_TEST_AUTOMATION: "1"
+        # Screenshot-only demo accounts, seeded directly in Supabase -
+        # not real users, no real ride/payment data.
+        DEMO_EMAIL: gibscreenshot.demo@gmail.com
+        DEMO_PASSWORD: ScreenshotDemo123!
+      node: v22.11.0
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Generate iOS project
+        script: |
+          npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+
+      - name: Build for iOS Simulator
+        script: |
+          WORKSPACE=$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+
+          xcodebuild build \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$CM_BUILD_DIR/derived-data" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Launch app and capture screenshots
+        script: |
+          DEVICE_ID=$(xcrun simctl list devices available -j | \
+            ruby -rjson -e '
+              data = JSON.parse(STDIN.read)
+              devices = data["devices"].values.flatten
+              iphone = devices.find { |d| d["name"].start_with?("iPhone") && d["isAvailable"] }
+              abort "No available iPhone simulator found" unless iphone
+              puts iphone["udid"]
+            ')
+
+          echo "Using simulator: $DEVICE_ID"
+
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          sleep 5
+
+          APP_PATH=$(find "$CM_BUILD_DIR/derived-data/Build/Products/Debug-iphonesimulator" -maxdepth 1 -name "*.app" | head -1)
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl privacy "$DEVICE_ID" grant location-always com.getinbitches.app || true
+
+          mkdir -p "$CM_BUILD_DIR/simulator-artifacts"
+          LOGFILE="$CM_BUILD_DIR/simulator-artifacts/app-console.log"
+
+          wait_for_launch_marker() {
+            local waited=0
+            until grep -q "IOS_TEST_APP_LAUNCHED" "$LOGFILE" 2>/dev/null; do
+              sleep 1
+              waited=$((waited + 1))
+              if [ "$waited" -ge 45 ]; then
+                echo "Timed out waiting for IOS_TEST_APP_LAUNCHED after ${waited}s"
+                break
+              fi
+            done
+          }
+
+          SIMCTL_CHILD_IOS_TEST_AUTOMATION="1" \
+            xcrun simctl launch --console-pty "$DEVICE_ID" com.getinbitches.app \
+              > "$LOGFILE" 2>&1 &
+          LAUNCH_PID=$!
+          sleep 3
+
+          # Screen 1: Home, signed in as a rider requesting a ride.
+          xcrun simctl openurl "$DEVICE_ID" "getinbitches://test-login?email=$DEMO_EMAIL&password=$DEMO_PASSWORD&role=rider"
+          wait_for_launch_marker
+          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/01_home_rider.png"
+
+          # Screen 2: Safety Center.
+          xcrun simctl openurl "$DEVICE_ID" "getinbitches://safety"
+          sleep 2
+          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/02_safety.png"
+
+          # Screen 3: Profile.
+          xcrun simctl openurl "$DEVICE_ID" "getinbitches://profile"
+          sleep 2
+          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/03_profile.png"
+
+          # Screen 4: Home again, switched to driver - shows the seeded
+          # open ride request from the other demo account.
+          xcrun simctl openurl "$DEVICE_ID" "getinbitches://test-login?email=$DEMO_EMAIL&password=$DEMO_PASSWORD&role=driver"
+          wait_for_launch_marker
+          xcrun simctl openurl "$DEVICE_ID" "getinbitches://"
+          sleep 2
+          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/04_home_driver.png"
+
+          kill "$LAUNCH_PID" 2>/dev/null || true
+          echo "--- app console log ---"
+          cat "$LOGFILE" || true
+
+    artifacts:
+      - $CM_BUILD_DIR/simulator-artifacts/**
+      - /tmp/xcodebuild_logs/*.log
