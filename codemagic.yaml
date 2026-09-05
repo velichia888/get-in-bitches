@@ -38,19 +38,16 @@ workflows:
 
       - name: Bump iOS build number
         script: |
-          # app.json's ios.buildNumber was a static "2", which App Store
-          # Connect had already seen (the rejected 2.1.0 submission) --
-          # every upload needs a strictly higher CFBundleVersion, so pull
-          # the last-accepted number and increment it instead of hardcoding.
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_CONNECT_APP_ID" || echo 0)
-          # Floor of 2 regardless of what the lookup returns: build "2" is
-          # already known to be live on App Store Connect (the rejected
-          # placeholder submission), so no computed value should ever let
-          # this dip below 3.
-          if [ "$LATEST_BUILD_NUMBER" -lt 2 ]; then
-            LATEST_BUILD_NUMBER=2
-          fi
-          NEW_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          # get-latest-app-store-build-number only sees builds attached to
+          # an App Store *version* - none of ours ever were (they're just
+          # uploaded, standalone), so it always printed "Did not find
+          # latest build for app <id>" as its stdout. That non-numeric
+          # string got captured into the variable and silently broke the
+          # arithmetic down to 0, producing the same colliding build
+          # number every run. $PROJECT_BUILD_NUMBER is Codemagic's own
+          # monotonically increasing per-app counter - no Apple API
+          # lookup needed, and it can never collide or go backwards.
+          NEW_BUILD_NUMBER="$PROJECT_BUILD_NUMBER"
           echo "Setting iOS build number to $NEW_BUILD_NUMBER"
 
           NEW_BUILD_NUMBER="$NEW_BUILD_NUMBER" node -e "
