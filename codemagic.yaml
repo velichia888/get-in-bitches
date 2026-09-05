@@ -14,6 +14,12 @@ workflows:
 
       vars:
         BUNDLE_ID: com.getinbitches.app
+        # Public/anon-scoped Supabase config - safe to keep in plain vars
+        # since access is governed by Row Level Security, not secrecy of
+        # these values. EXPO_PUBLIC_ prefix makes Expo inline them into
+        # the JS bundle at build time.
+        EXPO_PUBLIC_SUPABASE_URL: https://xeyfdyzspspcmyrhqmnb.supabase.co
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_6CN0UloP5qGirRVds3QzlQ_W64esp7p
 
       node: v22.11.0
       xcode: latest
