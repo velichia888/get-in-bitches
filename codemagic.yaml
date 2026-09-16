@@ -248,19 +248,18 @@ workflows:
           # only ever differed by coincidence of a marker-polling
           # timeout's dead-wait window overlapping real progress), so
           # this can't synchronize on log markers. TestAutomationRunner's
-          # own internal timer is deterministic, so fixed sleeps timed
-          # generously against that schedule are what actually works.
-          sleep 45
-          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/01_home_rider.png"
-
-          sleep 12
-          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/02_safety.png"
-
-          sleep 12
-          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/03_profile.png"
-
-          sleep 15
-          xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/04_home_driver.png"
+          # own internal timer is deterministic, but a fixed 45s initial
+          # sleep overshot the *entire* ~25-30s tour (sign-in latency +
+          # launch overhead vary run to run), so all four "distinct"
+          # screenshots came out as the same frozen STAGE_4 frame. Instead
+          # of guessing one more fixed offset, sample every 6s across the
+          # whole tour and keep every frame - cheap, and immune to launch
+          # jitter. The on-screen debug banner (STAGE_n text) makes it
+          # obvious afterward which frame belongs to which stage.
+          for i in $(seq -w 1 7); do
+            sleep 6
+            xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/sample_${i}.png"
+          done
 
           kill "$LAUNCH_PID" 2>/dev/null || true
           echo "--- app console log ---"
