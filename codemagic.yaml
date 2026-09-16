@@ -256,7 +256,13 @@ workflows:
           # whole tour and keep every frame - cheap, and immune to launch
           # jitter. The on-screen debug banner (STAGE_n text) makes it
           # obvious afterward which frame belongs to which stage.
-          for i in $(seq -w 1 7); do
+          #
+          # 7 samples (42s) wasn't enough margin: one run took ~30s just
+          # for cold launch to get the login screen on screen before the
+          # ~20-25s in-app tour even started, so it only ever reached
+          # STAGE_1 before the loop ran out. Widened to 16 samples (96s)
+          # to comfortably cover a slow cold launch + the full tour.
+          for i in $(seq -w 1 16); do
             sleep 6
             xcrun simctl io "$DEVICE_ID" screenshot "$CM_BUILD_DIR/simulator-artifacts/sample_${i}.png"
           done
