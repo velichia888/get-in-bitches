@@ -168,9 +168,11 @@ workflows:
         # Renders a live status banner in the running app so screenshots
         # show exactly what stage TestAutomationRunner reached, since
         # console.log doesn't reliably reach this workflow's captured
-        # output in Release builds. Turn off once timing is confirmed
-        # reliable, for clean screenshots to actually use.
-        EXPO_PUBLIC_IOS_TEST_DEBUG_BANNER: "1"
+        # output in Release builds. Timing is confirmed reliable now (16
+        # samples across the tour reproducibly hit every stage) and each
+        # screen's real UI is distinct enough to identify without it, so
+        # this is off for clean screenshots to actually use.
+        EXPO_PUBLIC_IOS_TEST_DEBUG_BANNER: "0"
         # Screenshot-only demo account, seeded directly in Supabase - not
         # a real user, no real ride/payment data. EXPO_PUBLIC_ prefix so
         # TestAutomationRunner can read it via process.env.
