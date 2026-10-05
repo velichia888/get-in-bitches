@@ -37,6 +37,14 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="crews"
+        options={{
+          title: 'Crews',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="safety"
         options={{
           title: 'Safety',

@@ -26,7 +26,12 @@ export default function ProfileScreen() {
 
   const load = useCallback(async () => {
     if (!userId) return;
-    const { data } = await supabase.from('profiles').select('id, full_name, role, phone').eq('id', userId).single();
+    const { data: privateProfiles } = await supabase.rpc(
+      'get_my_private_profile'
+    );
+    const data = Array.isArray(privateProfiles)
+      ? privateProfiles[0] ?? null
+      : null;
     if (data) {
       setProfile(data);
       setFullName(data.full_name ?? '');

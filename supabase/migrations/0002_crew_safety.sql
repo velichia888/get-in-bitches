@@ -145,6 +145,15 @@ alter table public.night_out_participants enable row level security;
 -- RLS HELPERS
 -- ------------------------------------------------------------
 --
+-- Internal authorization helpers live outside the API-facing public
+-- schema. Policies may execute them, but they are not intended to be
+-- client-callable RPC endpoints.
+create schema if not exists private;
+
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+
 -- These SECURITY DEFINER helpers intentionally perform membership checks
 -- outside the caller's row-security context. This avoids recursive RLS
 -- evaluation when a policy on crew_members needs to determine whether
@@ -152,7 +161,7 @@ alter table public.night_out_participants enable row level security;
 --
 -- Each helper exposes only a boolean authorization result.
 
-create or replace function public.is_crew_owner(
+create or replace function private.is_crew_owner(
   target_crew_id uuid,
   target_profile_id uuid default auth.uid()
 )
@@ -160,7 +169,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -171,7 +180,7 @@ as $$
 $$;
 
 
-create or replace function public.is_crew_member(
+create or replace function private.is_crew_member(
   target_crew_id uuid,
   target_profile_id uuid default auth.uid()
 )
@@ -179,7 +188,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -190,7 +199,7 @@ as $$
 $$;
 
 
-create or replace function public.is_night_out_creator(
+create or replace function private.is_night_out_creator(
   target_night_out_id uuid,
   target_profile_id uuid default auth.uid()
 )
@@ -198,7 +207,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -209,7 +218,7 @@ as $$
 $$;
 
 
-create or replace function public.is_night_out_crew_member(
+create or replace function private.is_night_out_crew_member(
   target_night_out_id uuid,
   target_profile_id uuid default auth.uid()
 )
@@ -217,7 +226,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -239,7 +248,7 @@ create policy "crew members can read their crews"
   for select
   using (
     owner_id = auth.uid()
-    or public.is_crew_member(id)
+    or private.is_crew_member(id)
   );
 
 
@@ -278,7 +287,7 @@ create policy "crew members can read membership"
   on public.crew_members
   for select
   using (
-    public.is_crew_member(crew_id)
+    private.is_crew_member(crew_id)
   );
 
 
@@ -287,7 +296,7 @@ create policy "crew owners add members"
   for insert
   with check (
     role = 'member'
-    and public.is_crew_owner(crew_id)
+    and private.is_crew_owner(crew_id)
   );
 
 
@@ -296,11 +305,11 @@ create policy "crew owners update members"
   for update
   using (
     role = 'member'
-    and public.is_crew_owner(crew_id)
+    and private.is_crew_owner(crew_id)
   )
   with check (
     role = 'member'
-    and public.is_crew_owner(crew_id)
+    and private.is_crew_owner(crew_id)
   );
 
 
@@ -309,7 +318,7 @@ create policy "crew owners remove members"
   for delete
   using (
     role = 'member'
-    and public.is_crew_owner(crew_id)
+    and private.is_crew_owner(crew_id)
   );
 
 
@@ -330,7 +339,7 @@ create policy "crew members can read night outs"
   on public.night_outs
   for select
   using (
-    public.is_crew_member(crew_id)
+    private.is_crew_member(crew_id)
   );
 
 
@@ -339,7 +348,7 @@ create policy "crew members create night outs"
   for insert
   with check (
     created_by = auth.uid()
-    and public.is_crew_member(crew_id)
+    and private.is_crew_member(crew_id)
   );
 
 
@@ -351,7 +360,7 @@ create policy "night out creators update night outs"
   )
   with check (
     created_by = auth.uid()
-    and public.is_crew_member(crew_id)
+    and private.is_crew_member(crew_id)
   );
 
 
@@ -371,7 +380,7 @@ create policy "crew members can read outing participants"
   on public.night_out_participants
   for select
   using (
-    public.is_night_out_crew_member(night_out_id)
+    private.is_night_out_crew_member(night_out_id)
   );
 
 
@@ -379,12 +388,12 @@ create policy "night out creators add participants"
   on public.night_out_participants
   for insert
   with check (
-    public.is_night_out_creator(night_out_id)
+    private.is_night_out_creator(night_out_id)
     and exists (
       select 1
       from public.night_outs n
       where n.id = night_out_id
-        and public.is_crew_member(n.crew_id, profile_id)
+        and private.is_crew_member(n.crew_id, profile_id)
     )
   );
 
@@ -393,10 +402,10 @@ create policy "night out creators update participants"
   on public.night_out_participants
   for update
   using (
-    public.is_night_out_creator(night_out_id)
+    private.is_night_out_creator(night_out_id)
   )
   with check (
-    public.is_night_out_creator(night_out_id)
+    private.is_night_out_creator(night_out_id)
   );
 
 
@@ -404,7 +413,7 @@ create policy "night out creators remove participants"
   on public.night_out_participants
   for delete
   using (
-    public.is_night_out_creator(night_out_id)
+    private.is_night_out_creator(night_out_id)
   );
 
 
@@ -413,11 +422,11 @@ create policy "participants update their own safety status"
   for update
   using (
     profile_id = auth.uid()
-    and public.is_night_out_crew_member(night_out_id)
+    and private.is_night_out_crew_member(night_out_id)
   )
   with check (
     profile_id = auth.uid()
-    and public.is_night_out_crew_member(night_out_id)
+    and private.is_night_out_crew_member(night_out_id)
   );
 
 
@@ -433,7 +442,7 @@ create or replace function public.add_crew_owner_as_member()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   insert into public.crew_members (
@@ -604,14 +613,14 @@ begin
   returning * into created_outing;
 
   for participant_id in
-    select distinct candidate_id
+    select distinct participant.candidate_id
     from unnest(
       array_append(
         coalesce(p_participant_ids, array[]::uuid[]),
         auth.uid()
       )
-    ) as candidate_id
-    where candidate_id is not null
+    ) as participant(candidate_id)
+    where participant.candidate_id is not null
   loop
     insert into public.night_out_participants (
       night_out_id,
@@ -628,3 +637,246 @@ begin
   return created_outing;
 end;
 $$;
+
+
+-- ============================================================
+-- PRIVATE CREW MEMBER LOOKUP
+-- ============================================================
+--
+-- Phone numbers are private profile data. Crew owners may use an exact
+-- phone number they already know to resolve one GIB account for membership,
+-- but the client must not receive a searchable phone-number directory.
+--
+-- This function returns only the non-sensitive identity fields needed to
+-- add the matching account to a Crew. It also verifies Crew ownership at
+-- the database boundary.
+
+create or replace function public.find_crew_invitee_by_phone(
+  p_crew_id uuid,
+  p_phone text
+)
+returns table (
+  id uuid,
+  full_name text,
+  avatar_url text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  normalized_phone text;
+  match_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'authentication required';
+  end if;
+
+  if not private.is_crew_owner(p_crew_id, auth.uid()) then
+    raise exception 'only the Crew owner can add members';
+  end if;
+
+  normalized_phone := regexp_replace(
+    coalesce(p_phone, ''),
+    '[^0-9]',
+    '',
+    'g'
+  );
+
+  if normalized_phone = '' then
+    raise exception 'phone number is required';
+  end if;
+
+  select count(*)
+  into match_count
+  from public.profiles p
+  where p.phone is not null
+    and regexp_replace(p.phone, '[^0-9]', '', 'g') = normalized_phone;
+
+  if match_count = 0 then
+    return;
+  end if;
+
+  if match_count > 1 then
+    raise exception 'phone number matches more than one profile';
+  end if;
+
+  return query
+  select
+    p.id,
+    p.full_name,
+    p.avatar_url
+  from public.profiles p
+  where p.phone is not null
+    and regexp_replace(p.phone, '[^0-9]', '', 'g') = normalized_phone
+  limit 1;
+end;
+$$;
+
+
+-- RPC execution is explicit. Anonymous callers receive no access.
+revoke all on function public.find_crew_invitee_by_phone(uuid, text)
+  from public;
+
+grant execute on function public.find_crew_invitee_by_phone(uuid, text)
+  to authenticated;
+
+revoke all on function public.create_night_out_with_participants(
+  uuid,
+  text,
+  text,
+  timestamptz,
+  timestamptz,
+  text,
+  uuid[]
+) from public;
+
+grant execute on function public.create_night_out_with_participants(
+  uuid,
+  text,
+  text,
+  timestamptz,
+  timestamptz,
+  text,
+  uuid[]
+) to authenticated;
+
+
+-- ============================================================
+-- PROFILE PRIVACY HARDENING
+-- ============================================================
+--
+-- The original v1 schema allowed every authenticated account to read
+-- every profile row. Crew features do not require a public user
+-- directory, and phone numbers are private account data.
+--
+-- Replace that broad policy with relationship-based profile visibility.
+-- A signed-in user may read:
+--
+--   * her own profile;
+--   * the other participant in one of her rides;
+--   * a user she has blocked;
+--   * members of one of her Crews.
+--
+-- Exact phone-number discovery for Crew invitations is handled only by
+-- find_crew_invitee_by_phone(), which returns no phone number.
+
+drop policy if exists "profiles are readable by authenticated users"
+  on public.profiles;
+
+
+create or replace function public.can_read_profile(
+  target_profile_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    auth.uid() is not null
+    and (
+      target_profile_id = auth.uid()
+
+      or exists (
+        select 1
+        from public.rides r
+        where (
+          r.rider_id = auth.uid()
+          and r.driver_id = target_profile_id
+        )
+        or (
+          r.driver_id = auth.uid()
+          and r.rider_id = target_profile_id
+        )
+      )
+
+      or exists (
+        select 1
+        from public.blocks b
+        where b.blocker_id = auth.uid()
+          and b.blocked_id = target_profile_id
+      )
+
+      or exists (
+        select 1
+        from public.crew_members viewer_membership
+        join public.crew_members target_membership
+          on target_membership.crew_id = viewer_membership.crew_id
+        where viewer_membership.profile_id = auth.uid()
+          and target_membership.profile_id = target_profile_id
+      )
+    );
+$$;
+
+
+revoke all on function public.can_read_profile(uuid)
+  from public;
+
+grant execute on function public.can_read_profile(uuid)
+  to authenticated;
+
+
+create policy "profiles readable through user relationships"
+  on public.profiles
+  for select
+  using (
+    public.can_read_profile(id)
+  );
+
+
+-- ============================================================
+-- PRIVATE PROFILE FIELDS
+-- ============================================================
+--
+-- Row-level security determines which profile rows are visible, but it
+-- cannot hide one column from an otherwise-visible row. Phone numbers must
+-- therefore not be selectable through the normal profiles REST endpoint.
+--
+-- Ordinary authenticated reads receive only non-sensitive profile columns.
+-- A user retrieves her own private profile fields through the RPC below.
+
+revoke select on table public.profiles
+  from anon, authenticated;
+
+grant select (
+  id,
+  full_name,
+  role,
+  avatar_url,
+  created_at
+) on table public.profiles
+  to authenticated;
+
+
+create or replace function public.get_my_private_profile()
+returns table (
+  id uuid,
+  full_name text,
+  role user_role,
+  phone text,
+  avatar_url text
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    p.id,
+    p.full_name,
+    p.role,
+    p.phone,
+    p.avatar_url
+  from public.profiles p
+  where p.id = auth.uid()
+    and auth.uid() is not null;
+$$;
+
+
+revoke all on function public.get_my_private_profile()
+  from public;
+
+grant execute on function public.get_my_private_profile()
+  to authenticated;

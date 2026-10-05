@@ -282,3 +282,79 @@ export function subscribeToNightOutParticipants(
     void supabase.removeChannel(channel);
   };
 }
+
+export async function addCrewMemberByPhone(
+  crewId: string,
+  phone: string
+): Promise<CrewMemberWithProfile> {
+  const normalizedInput = phone.trim();
+
+  if (!normalizedInput) {
+    throw new Error('Enter the phone number on their GIB profile.');
+  }
+
+  const { data: matches, error: lookupError } = await supabase.rpc(
+    'find_crew_invitee_by_phone',
+    {
+      p_crew_id: crewId,
+      p_phone: normalizedInput,
+    }
+  );
+
+  if (lookupError) {
+    if (lookupError.message.includes('matches more than one profile')) {
+      throw new Error(
+        'More than one GIB profile uses that phone number. Ask them to update their profile before adding them.'
+      );
+    }
+
+    throw lookupError;
+  }
+
+  const profile = Array.isArray(matches) ? matches[0] : null;
+
+  if (!profile) {
+    throw new Error(
+      'No GIB profile was found with that phone number.'
+    );
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('crew_members')
+    .select('crew_id, profile_id, role, joined_at')
+    .eq('crew_id', crewId)
+    .eq('profile_id', profile.id)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existing) {
+    throw new Error(
+      `${profile.full_name || 'That person'} is already in this Crew.`
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('crew_members')
+    .insert({
+      crew_id: crewId,
+      profile_id: profile.id,
+      role: 'member',
+    })
+    .select('crew_id, profile_id, role, joined_at')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ...data,
+    profiles: {
+      full_name: profile.full_name,
+      avatar_url: profile.avatar_url,
+    },
+  } as CrewMemberWithProfile;
+}
