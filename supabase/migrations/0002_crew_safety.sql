@@ -547,3 +547,84 @@ create trigger night_out_participant_identity_guard
 alter publication supabase_realtime
   add table public.night_out_participants;
 
+
+
+-- ============================================================
+-- ATOMIC NIGHT OUT CREATION
+-- ============================================================
+--
+-- Creating the outing and its initial participant rows is one logical
+-- operation. Keeping it in a database function prevents a partially-created
+-- Night Out if participant creation fails.
+
+create or replace function public.create_night_out_with_participants(
+  p_crew_id uuid,
+  p_name text,
+  p_destination_name text default null,
+  p_starts_at timestamptz default null,
+  p_planned_return_at timestamptz default null,
+  p_transportation_plan text default null,
+  p_participant_ids uuid[] default array[]::uuid[]
+)
+returns public.night_outs
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  created_outing public.night_outs;
+  participant_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'authentication required';
+  end if;
+
+  if nullif(trim(p_name), '') is null then
+    raise exception 'night out name is required';
+  end if;
+
+  insert into public.night_outs (
+    crew_id,
+    created_by,
+    name,
+    destination_name,
+    starts_at,
+    planned_return_at,
+    transportation_plan
+  )
+  values (
+    p_crew_id,
+    auth.uid(),
+    trim(p_name),
+    nullif(trim(p_destination_name), ''),
+    p_starts_at,
+    p_planned_return_at,
+    nullif(trim(p_transportation_plan), '')
+  )
+  returning * into created_outing;
+
+  for participant_id in
+    select distinct candidate_id
+    from unnest(
+      array_append(
+        coalesce(p_participant_ids, array[]::uuid[]),
+        auth.uid()
+      )
+    ) as candidate_id
+    where candidate_id is not null
+  loop
+    insert into public.night_out_participants (
+      night_out_id,
+      profile_id,
+      safety_status
+    )
+    values (
+      created_outing.id,
+      participant_id,
+      'going'
+    );
+  end loop;
+
+  return created_outing;
+end;
+$$;
