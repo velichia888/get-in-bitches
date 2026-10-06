@@ -41,6 +41,12 @@ export default function CrewsLayout() {
           title: 'Night Out',
         }}
       />
+      <Stack.Screen
+        name="night-out/[nightOutId]/get-home"
+        options={{
+          title: 'Get Us Home',
+        }}
+      />
     </Stack>
   );
 }

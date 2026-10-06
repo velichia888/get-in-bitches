@@ -14,7 +14,11 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
 
 import { useAuth } from '../../../../lib/auth-context';
 import {
@@ -70,6 +74,7 @@ export default function NightOutDashboardScreen() {
   }>();
 
   const { session } = useAuth();
+  const router = useRouter();
 
   const [nightOut, setNightOut] = useState<NightOut | null>(null);
   const [crew, setCrew] = useState<Crew | null>(null);
@@ -547,7 +552,20 @@ export default function NightOutDashboardScreen() {
         <Text style={styles.errorText}>{error}</Text>
       ) : null}
 
-      <View style={styles.getHomeCard}>
+      <Pressable
+        style={styles.getHomeCard}
+        onPress={() => {
+          if (!nightOutId) {
+            return;
+          }
+
+          router.push({
+            pathname:
+              '/(app)/crews/night-out/[nightOutId]/get-home',
+            params: { nightOutId },
+          });
+        }}
+      >
         <View style={styles.getHomeIcon}>
           <Ionicons
             name="car-sport"
@@ -557,19 +575,22 @@ export default function NightOutDashboardScreen() {
         </View>
 
         <View style={styles.getHomeText}>
+          <Text style={styles.getHomeEyebrow}>
+            TRANSPORTATION
+          </Text>
           <Text style={styles.getHomeTitle}>Get Us Home</Text>
           <Text style={styles.getHomeSubtitle}>
-            Transportation will plug into this Night Out instead of
-            living as a separate generic ride request.
+            Ready to wrap up the night? Request a ride connected to
+            this Night Out.
           </Text>
         </View>
 
         <Ionicons
-          name="lock-closed-outline"
-          size={18}
-          color={colors.textMuted}
+          name="chevron-forward"
+          size={20}
+          color={colors.accent}
         />
-      </View>
+      </Pressable>
 
       <View style={styles.homeSafeCard}>
         <Ionicons
@@ -932,6 +953,13 @@ const styles = StyleSheet.create({
   },
   getHomeText: {
     flex: 1,
+  },
+  getHomeEyebrow: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
   },
   getHomeTitle: {
     color: colors.text,
