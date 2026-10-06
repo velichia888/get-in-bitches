@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as Location from 'expo-location';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth-context';
 import { colors, spacing, radius } from '../../lib/theme';
+import { createRideRequest } from '../../lib/ride-service';
 
 type Profile = {
   id: string;
@@ -18,25 +18,6 @@ type OpenRide = {
   dropoff_address: string;
   fare_estimate: number | null;
 };
-
-// Flat per-mile/per-minute estimate, shown as text only - no real charge
-// happens anywhere in this app. Distance is a straight-line approximation
-// from coordinates, which is fine for an estimate.
-function estimateFare(distanceMiles: number) {
-  const base = 3.5;
-  const perMile = 1.75;
-  return Math.round((base + distanceMiles * perMile) * 100) / 100;
-}
-
-function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 3958.8;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 export default function Home() {
   const { session } = useAuth();
@@ -116,7 +97,7 @@ export default function Home() {
   }
 
   async function requestRide() {
-    if (!userId || !pickupAddress || !dropoffAddress) {
+    if (!pickupAddress || !dropoffAddress) {
       setRequestError('Enter both a pickup and dropoff address.');
       return;
     }
@@ -125,54 +106,21 @@ export default function Home() {
     setRequestError(null);
 
     try {
-      // Location permission prompts can sit unanswered indefinitely (the
-      // user ignores it, or - on web - it's a native browser dialog this
-      // app has no way to react to). Racing against a timeout means a
-      // slow/ignored prompt falls back to a default pickup point instead
-      // of leaving the rider stuck on a spinner forever.
-      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
-      const position = await Promise.race([
-        (async () => {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          return status === 'granted' ? await Location.getCurrentPositionAsync({}) : null;
-        })(),
-        timeout,
-      ]);
-
-      const pickupLat = position?.coords.latitude ?? 34.05;
-      const pickupLng = position?.coords.longitude ?? -118.24;
-      // Dropoff coordinates aren't geocoded from the typed address in v1 -
-      // offset slightly so the fare estimate has a non-zero distance to
-      // work with. Real geocoding is a follow-up, not core to this pass.
-      const dropoffLat = pickupLat + 0.03;
-      const dropoffLng = pickupLng + 0.03;
-
-      const distance = haversineMiles(pickupLat, pickupLng, dropoffLat, dropoffLng);
-      const fare = estimateFare(distance);
-
-      const { data, error } = await supabase
-        .from('rides')
-        .insert({
-          rider_id: userId,
-          pickup_lat: pickupLat,
-          pickup_lng: pickupLng,
-          pickup_address: pickupAddress,
-          dropoff_lat: dropoffLat,
-          dropoff_lng: dropoffLng,
-          dropoff_address: dropoffAddress,
-          fare_estimate: fare,
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        setRequestError(error.message);
-        return;
-      }
+      const ride = await createRideRequest({
+        pickupAddress,
+        dropoffAddress,
+      });
 
       setPickupAddress('');
       setDropoffAddress('');
-      router.push(`/(app)/ride/${data.id}`);
+
+      router.push(`/(app)/ride/${ride.id}`);
+    } catch (error) {
+      setRequestError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to request a ride.'
+      );
     } finally {
       setRequesting(false);
     }
