@@ -173,11 +173,11 @@ workflows:
         # screen's real UI is distinct enough to identify without it, so
         # this is off for clean screenshots to actually use.
         EXPO_PUBLIC_IOS_TEST_DEBUG_BANNER: "0"
+        EXPO_PUBLIC_DEMO_CREW_NAME: "GIB Screenshot Crew"
+        EXPO_PUBLIC_DEMO_NIGHT_OUT_NAME: "Girls Night Out"
         # Screenshot-only demo account, seeded directly in Supabase - not
         # a real user, no real ride/payment data. EXPO_PUBLIC_ prefix so
         # TestAutomationRunner can read it via process.env.
-        EXPO_PUBLIC_DEMO_EMAIL: gibscreenshot.demo@gmail.com
-        EXPO_PUBLIC_DEMO_PASSWORD: ScreenshotDemo123!
       node: v22.11.0
       xcode: latest
       cocoapods: default

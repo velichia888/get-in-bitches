@@ -2,69 +2,128 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import {
+  listMyCrews,
+  listNightOuts,
+} from '../lib/crew-service';
 
-// Drives a self-contained screenshot tour for the ios-simulator CI
-// workflow only (EXPO_PUBLIC_IOS_TEST_AUTOMATION is never set for the
-// real ios-app-store build, so this is inert in the shipped app).
-//
-// This does NOT use deep links (xcrun simctl openurl): iOS shows a
-// blocking "Open in <App>?" system confirmation for custom URL schemes
-// that no CI script can dismiss, which silently stalled every attempt.
-// It also does NOT rely on console.log reaching the CI-captured output:
-// confirmed empirically that Release-mode Hermes doesn't forward it
-// reliably. Instead this renders its own status as on-screen text -
-// visible directly in the screenshots themselves - and the CI script
-// just sleeps fixed, generous intervals timed against this component's
-// own internal schedule.
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function TestAutomationRunner() {
   const router = useRouter();
   const [status, setStatus] = useState('idle');
 
   useEffect(() => {
-    if (process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1') return;
+    if (process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1') {
+      return;
+    }
 
-    const email = process.env.EXPO_PUBLIC_DEMO_EMAIL!;
-    const password = process.env.EXPO_PUBLIC_DEMO_PASSWORD!;
+    const email = process.env.EXPO_PUBLIC_DEMO_EMAIL;
+    const password = process.env.EXPO_PUBLIC_DEMO_PASSWORD;
+    const crewName = process.env.EXPO_PUBLIC_DEMO_CREW_NAME;
+    const nightOutName = process.env.EXPO_PUBLIC_DEMO_NIGHT_OUT_NAME;
 
     async function run() {
-      setStatus(`signing in as ${email}`);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error || !data.user) {
-        setStatus(`SIGN-IN FAILED: ${error?.message ?? 'no user returned'}`);
+      if (!email || !password || !crewName || !nightOutName) {
+        setStatus('CONFIG ERROR: screenshot environment is incomplete');
         return;
       }
 
-      setStatus('signed in, setting role=rider');
-      await supabase.from('profiles').update({ role: 'rider' }).eq('id', data.user.id);
-      await sleep(2000);
-      setStatus('STAGE_1_HOME_RIDER');
+      setStatus('signing in to screenshot account');
 
-      await sleep(4000);
-      router.push('/safety');
-      await sleep(1500);
-      setStatus('STAGE_2_SAFETY');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      await sleep(4000);
-      router.push('/profile');
-      await sleep(1500);
-      setStatus('STAGE_3_PROFILE');
+      if (error || !data.user) {
+        setStatus(
+          `SIGN-IN FAILED: ${error?.message ?? 'no user returned'}`
+        );
+        return;
+      }
 
-      await sleep(4000);
-      setStatus('switching role=driver');
-      await supabase.from('profiles').update({ role: 'driver' }).eq('id', data.user.id);
-      await supabase.from('driver_status').upsert({ profile_id: data.user.id, is_online: true });
-      router.replace('/(app)');
-      await sleep(2000);
-      setStatus('STAGE_4_HOME_DRIVER');
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        setStatus(`PROFILE FAILED: ${profileError.message}`);
+        return;
+      }
+
+      if (profile.role !== 'rider') {
+        setStatus('CONFIG ERROR: screenshot account must be a rider');
+        return;
+      }
+
+      setStatus('loading screenshot Crew');
+
+      const crews = await listMyCrews();
+      const crew = crews.find((candidate) => candidate.name === crewName);
+
+      if (!crew) {
+        setStatus(`SEED ERROR: Crew "${crewName}" not found`);
+        return;
+      }
+
+      const nightOuts = await listNightOuts(crew.id);
+      const nightOut = nightOuts.find(
+        (candidate) => candidate.name === nightOutName
+      );
+
+      if (!nightOut) {
+        setStatus(`SEED ERROR: Night Out "${nightOutName}" not found`);
+        return;
+      }
+
+      setStatus('STAGE_1_CREWS');
+      router.replace('/(app)/crews');
+      await sleep(7000);
+
+      setStatus('STAGE_2_CREW');
+      router.push(`/(app)/crews/${crew.id}`);
+      await sleep(7000);
+
+      setStatus('STAGE_3_NIGHT_OUT');
+      router.push({
+        pathname: '/(app)/crews/night-out/[nightOutId]',
+        params: { nightOutId: nightOut.id },
+      });
+      await sleep(9000);
+
+      setStatus('STAGE_4_HOME_SAFE');
+      await sleep(7000);
+
+      setStatus('STAGE_5_GET_US_HOME');
+      router.push({
+        pathname: '/(app)/crews/night-out/[nightOutId]/get-home',
+        params: { nightOutId: nightOut.id },
+      });
+      await sleep(8000);
+
+      setStatus('STAGE_6_SAFETY');
+      router.push('/(app)/safety');
+      await sleep(8000);
+
+      setStatus('TOUR_COMPLETE');
     }
 
-    run().catch((err) => setStatus(`CRASHED: ${String(err)}`));
-  }, []);
+    run().catch((err) => {
+      setStatus(`CRASHED: ${String(err)}`);
+    });
+  }, [router]);
 
-  if (process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1') return null;
-  if (process.env.EXPO_PUBLIC_IOS_TEST_DEBUG_BANNER !== '1') return null;
+  if (process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1') {
+    return null;
+  }
+
+  if (process.env.EXPO_PUBLIC_IOS_TEST_DEBUG_BANNER !== '1') {
+    return null;
+  }
 
   return (
     <View pointerEvents="none" style={styles.banner}>
