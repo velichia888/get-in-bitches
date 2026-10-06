@@ -12,6 +12,26 @@ export type CreatedRideRequest = {
   id: string;
 };
 
+export type NightOutRide = {
+  id: string;
+  rider_id: string;
+  driver_id: string | null;
+  pickup_address: string;
+  dropoff_address: string;
+  status:
+    | 'requested'
+    | 'matched'
+    | 'in_progress'
+    | 'completed'
+    | 'cancelled';
+  fare_estimate: number | null;
+  requested_at: string;
+  matched_at: string | null;
+  completed_at: string | null;
+  night_out_id: string;
+};
+
+
 function estimateFare(distanceMiles: number) {
   const base = 3.5;
   const perMile = 1.75;
@@ -135,4 +155,22 @@ export async function createRideRequest(
   }
 
   return data as CreatedRideRequest;
+}
+
+export async function listNightOutRides(
+  nightOutId: string
+): Promise<NightOutRide[]> {
+  const { data, error } = await supabase
+    .from('rides')
+    .select(
+      'id, rider_id, driver_id, pickup_address, dropoff_address, status, fare_estimate, requested_at, matched_at, completed_at, night_out_id'
+    )
+    .eq('night_out_id', nightOutId)
+    .order('requested_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as NightOutRide[];
 }
