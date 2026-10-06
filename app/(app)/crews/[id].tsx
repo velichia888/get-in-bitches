@@ -15,10 +15,12 @@ import { useAuth } from '../../../lib/auth-context';
 import {
   getCrew,
   listCrewMembers,
+  listNightOuts,
 } from '../../../lib/crew-service';
 import type {
   Crew,
   CrewMemberWithProfile,
+  NightOut,
 } from '../../../lib/crew-types';
 import { colors, radius, spacing } from '../../../lib/theme';
 
@@ -29,6 +31,7 @@ export default function CrewDetailScreen() {
 
   const [crew, setCrew] = useState<Crew | null>(null);
   const [members, setMembers] = useState<CrewMemberWithProfile[]>([]);
+  const [nightOuts, setNightOuts] = useState<NightOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,13 +60,15 @@ export default function CrewDetailScreen() {
       setError(null);
 
       try {
-        const [crewData, memberData] = await Promise.all([
+        const [crewData, memberData, nightOutData] = await Promise.all([
           getCrew(id),
           listCrewMembers(id),
+          listNightOuts(id),
         ]);
 
         setCrew(crewData);
         setMembers(memberData);
+        setNightOuts(nightOutData);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Could not load this Crew.'
@@ -223,45 +228,129 @@ export default function CrewDetailScreen() {
           );
         }}
         ListFooterComponent={
-          isOwner ? (
-            <View style={styles.ownerActions}>
-              <View style={styles.ownerActionHeader}>
-                <Ionicons
-                  name="person-add-outline"
-                  size={22}
-                  color={colors.accent}
-                />
-                <View style={styles.ownerActionText}>
-                  <Text style={styles.ownerActionTitle}>Add your people</Text>
-                  <Text style={styles.ownerActionSubtitle}>
-                    Member invites are the next Crew slice.
+          <View>
+            <View style={styles.nightOutSection}>
+              <View style={styles.nightOutHeader}>
+                <View style={styles.nightOutHeading}>
+                  <Text style={styles.sectionTitle}>Night Outs</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Plan the night, who's going, and how everybody gets home.
                   </Text>
                 </View>
+
+                <Pressable
+                  style={styles.planButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(app)/crews/night-out/new',
+                      params: { crewId: crew.id },
+                    })
+                  }
+                >
+                  <Ionicons
+                    name="moon"
+                    size={17}
+                    color={colors.text}
+                  />
+                  <Text style={styles.planButtonText}>Plan</Text>
+                </Pressable>
               </View>
 
-              <Pressable
-                style={styles.inviteAction}
-                onPress={() =>
-                  router.push({
-                    pathname: '/(app)/crews/invite',
-                    params: {
-                      crewId: crew.id,
-                      crewName: crew.name,
-                    },
-                  })
-                }
-              >
-                <Text style={styles.inviteActionText}>
-                  Invite member
-                </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={colors.accent}
-                />
-              </Pressable>
+              {nightOuts.length === 0 ? (
+                <View style={styles.noNightOutCard}>
+                  <Ionicons
+                    name="moon-outline"
+                    size={27}
+                    color={colors.textMuted}
+                  />
+                  <Text style={styles.noNightOutTitle}>
+                    Nothing planned yet
+                  </Text>
+                  <Text style={styles.noNightOutText}>
+                    Start a Night Out and choose who's coming.
+                  </Text>
+                </View>
+              ) : (
+                nightOuts.map((nightOut) => (
+                  <Pressable
+                    key={nightOut.id}
+                    style={styles.nightOutCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(app)/crews/night-out/[nightOutId]',
+                        params: { nightOutId: nightOut.id },
+                      })
+                    }
+                  >
+                    <View style={styles.nightOutIcon}>
+                      <Ionicons
+                        name="moon"
+                        size={20}
+                        color={colors.accent}
+                      />
+                    </View>
+
+                    <View style={styles.nightOutInfo}>
+                      <Text style={styles.nightOutName}>
+                        {nightOut.name}
+                      </Text>
+                      <Text style={styles.nightOutMeta}>
+                        {nightOut.destination_name || 'Destination not set'}
+                      </Text>
+                    </View>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                ))
+              )}
             </View>
-          ) : null
+
+            {isOwner ? (
+              <View style={styles.ownerActions}>
+                <View style={styles.ownerActionHeader}>
+                  <Ionicons
+                    name="person-add-outline"
+                    size={22}
+                    color={colors.accent}
+                  />
+                  <View style={styles.ownerActionText}>
+                    <Text style={styles.ownerActionTitle}>
+                      Add your people
+                    </Text>
+                    <Text style={styles.ownerActionSubtitle}>
+                      Add someone who already has a GIB account.
+                    </Text>
+                  </View>
+                </View>
+
+                <Pressable
+                  style={styles.inviteAction}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(app)/crews/invite',
+                      params: {
+                        crewId: crew.id,
+                        crewName: crew.name,
+                      },
+                    })
+                  }
+                >
+                  <Text style={styles.inviteActionText}>
+                    Invite member
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={colors.accent}
+                  />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         }
       />
     </View>
@@ -435,6 +524,83 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  nightOutSection: {
+    marginTop: spacing.xl,
+  },
+  nightOutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  nightOutHeading: {
+    flex: 1,
+  },
+  planButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  planButtonText: {
+    color: colors.text,
+    fontWeight: '800',
+  },
+  noNightOutCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  noNightOutTitle: {
+    color: colors.text,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
+  noNightOutText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  nightOutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  nightOutIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  nightOutInfo: {
+    flex: 1,
+  },
+  nightOutName: {
+    color: colors.text,
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  nightOutMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 3,
   },
   ownerActions: {
     backgroundColor: colors.surface,

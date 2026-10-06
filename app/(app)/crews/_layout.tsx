@@ -29,6 +29,18 @@ export default function CrewsLayout() {
           title: 'Add to Crew',
         }}
       />
+      <Stack.Screen
+        name="night-out/new"
+        options={{
+          title: 'Plan a Night Out',
+        }}
+      />
+      <Stack.Screen
+        name="night-out/[nightOutId]"
+        options={{
+          title: 'Night Out',
+        }}
+      />
     </Stack>
   );
 }
