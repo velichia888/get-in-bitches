@@ -21,7 +21,7 @@ export default function SignIn() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Get In Bitches</Text>
-      <Text style={styles.subtitle}>Women-only rides, by women for women.</Text>
+      <Text style={styles.subtitle}>Your Crew. Your Night Out. Everybody Home Safe.</Text>
 
       <TextInput
         style={styles.input}

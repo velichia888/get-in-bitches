@@ -61,7 +61,7 @@ export default function RateRide() {
       <View style={styles.center}>
         <Text style={styles.title}>Thanks for rating your ride!</Text>
         <Pressable style={styles.button} onPress={() => router.replace('/(app)')}>
-          <Text style={styles.buttonText}>Back to Home</Text>
+          <Text style={styles.buttonText}>Back to Ride</Text>
         </Pressable>
       </View>
     );

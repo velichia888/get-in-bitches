@@ -56,7 +56,7 @@ export default function ReportUser() {
           {alsoBlock ? "This user is blocked and won't be matched with you again." : 'Thanks for letting us know.'}
         </Text>
         <Pressable style={styles.button} onPress={() => router.replace('/(app)')}>
-          <Text style={styles.buttonText}>Back to Home</Text>
+          <Text style={styles.buttonText}>Back to Ride</Text>
         </Pressable>
       </View>
     );
