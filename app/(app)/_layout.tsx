@@ -30,18 +30,22 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
         name="crews"
         options={{
           title: 'Crews',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Ride',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="car-sport" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen

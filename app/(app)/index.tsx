@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth-context';
 import { colors, spacing, radius } from '../../lib/theme';
@@ -188,7 +189,24 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Request a ride</Text>
+      <View style={styles.rideHero}>
+        <View style={styles.rideHeroIcon}>
+          <Ionicons
+            name="car-sport"
+            size={24}
+            color={colors.accent}
+          />
+        </View>
+
+        <Text style={styles.eyebrow}>NEED A RIDE?</Text>
+        <Text style={styles.rideTitle}>Go somewhere now</Text>
+        <Text style={styles.rideSubtitle}>
+          For a full night with your people, start from Crews so GIB can
+          keep the ride and everybody's Home Safe status together.
+        </Text>
+      </View>
+
+      <Text style={styles.sectionTitle}>Standalone ride</Text>
 
       <TextInput
         style={styles.input}
@@ -217,6 +235,37 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: spacing.lg },
   center: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  rideHero: {
+    marginBottom: spacing.xl,
+  },
+  rideHeroIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  eyebrow: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.6,
+    marginBottom: spacing.xs,
+  },
+  rideTitle: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+  },
+  rideSubtitle: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+    maxWidth: 460,
+  },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.md },
   input: {
     backgroundColor: colors.surface,

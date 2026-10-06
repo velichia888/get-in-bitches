@@ -85,11 +85,61 @@ export default function CrewsScreen() {
           <Ionicons name="people" size={26} color={colors.accent} />
         </View>
 
-        <Text style={styles.eyebrow}>YOUR PEOPLE</Text>
+        <Text style={styles.eyebrow}>GET IN BITCHES</Text>
         <Text style={styles.title}>Who's coming out?</Text>
         <Text style={styles.subtitle}>
-          Build your Crews, plan the night, and make sure everybody gets home safe.
+          Your night starts with your people. Build a Crew, plan the Night
+          Out, get everybody a ride, and don't call it done until everyone's
+          Home Safe.
         </Text>
+
+        <View style={styles.journey}>
+          <View style={styles.journeyStep}>
+            <Ionicons name="people" size={16} color={colors.accent} />
+            <Text style={styles.journeyText}>Crew</Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={14}
+            color={colors.textMuted}
+          />
+
+          <View style={styles.journeyStep}>
+            <Ionicons name="moon" size={16} color={colors.accent} />
+            <Text style={styles.journeyText}>Night Out</Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={14}
+            color={colors.textMuted}
+          />
+
+          <View style={styles.journeyStep}>
+            <Ionicons
+              name="car-sport"
+              size={16}
+              color={colors.accent}
+            />
+            <Text style={styles.journeyText}>Get Us Home</Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={14}
+            color={colors.textMuted}
+          />
+
+          <View style={styles.journeyStep}>
+            <Ionicons
+              name="shield-checkmark"
+              size={16}
+              color={colors.success}
+            />
+            <Text style={styles.journeyText}>Home Safe</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.headingRow}>
@@ -265,6 +315,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: 440,
   },
+  journey: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.lg,
+  },
+  journeyStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+  },
+  journeyText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
   headingRow: {
     flexDirection: 'row',
     alignItems: 'center',
