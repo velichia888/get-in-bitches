@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -73,12 +74,14 @@ function formatDateTime(value: string | null): string {
 }
 
 export default function NightOutDashboardScreen() {
-  const { nightOutId } = useLocalSearchParams<{
+  const { nightOutId, focus } = useLocalSearchParams<{
     nightOutId?: string;
+    focus?: string;
   }>();
 
   const { session } = useAuth();
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
 
   const [nightOut, setNightOut] = useState<NightOut | null>(null);
   const [crew, setCrew] = useState<Crew | null>(null);
@@ -188,6 +191,23 @@ export default function NightOutDashboardScreen() {
   );
 
   useEffect(() => {
+    if (
+      process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1' ||
+      focus !== 'home-safe' ||
+      loading ||
+      !nightOut
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: false });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [focus, loading, nightOut]);
+
+  useEffect(() => {
     if (!nightOutId) {
       return;
     }
@@ -260,6 +280,7 @@ export default function NightOutDashboardScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addCrewMemberByPhone } from '../../../lib/crew-service';
 import { colors, radius } from '../../../lib/theme';
@@ -22,6 +23,7 @@ export default function InviteCrewMemberScreen() {
   }>();
 
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [phone, setPhone] = useState('');
   const [adding, setAdding] = useState(false);
@@ -62,7 +64,7 @@ export default function InviteCrewMemberScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top + 14 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.topRow}>

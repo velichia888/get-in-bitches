@@ -96,6 +96,13 @@ export default function TestAutomationRunner() {
       await sleep(9000);
 
       setStatus('STAGE_4_HOME_SAFE');
+      router.replace({
+        pathname: '/(app)/crews/night-out/[nightOutId]',
+        params: {
+          nightOutId: nightOut.id,
+          focus: 'home-safe',
+        },
+      });
       await sleep(7000);
 
       setStatus('STAGE_5_GET_US_HOME');

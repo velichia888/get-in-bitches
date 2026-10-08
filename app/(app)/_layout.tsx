@@ -1,11 +1,13 @@
 import { Redirect, Tabs } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors } from '../../lib/theme';
 
 export default function AppLayout() {
   const { session, loading } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
@@ -36,10 +38,10 @@ export default function AppLayout() {
           backgroundColor: '#100C0F',
           borderTopWidth: 1,
           borderTopColor: '#3A2A33',
-          height: 74,
+          height: 64 + insets.bottom,
           paddingHorizontal: 8,
           paddingTop: 8,
-          paddingBottom: 9,
+          paddingBottom: Math.max(9, insets.bottom),
           width: '100%',
           maxWidth: 460,
           alignSelf: 'center',
@@ -74,7 +76,8 @@ export default function AppLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Ride',
+          title: 'Get Us Home',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'car-sport' : 'car-sport-outline'}
@@ -87,7 +90,8 @@ export default function AppLayout() {
       <Tabs.Screen
         name="safety"
         options={{
-          title: 'Safety',
+          title: 'Home Safe',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'}
@@ -101,6 +105,7 @@ export default function AppLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}

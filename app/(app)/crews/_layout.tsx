@@ -6,7 +6,13 @@ export default function CrewsLayout() {
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.text,
+        headerTintColor: colors.blush,
+        headerShadowVisible: false,
+        headerTitleStyle: {
+          color: colors.blush,
+          fontFamily: 'Georgia',
+          fontSize: 18,
+        },
         contentStyle: { backgroundColor: colors.background },
       }}
     >
@@ -27,12 +33,14 @@ export default function CrewsLayout() {
         name="invite"
         options={{
           title: 'Add to Crew',
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="night-out/new"
         options={{
           title: 'Plan a Night Out',
+          headerShown: false,
         }}
       />
       <Stack.Screen

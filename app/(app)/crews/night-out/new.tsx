@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   createNightOut,
@@ -47,6 +48,7 @@ function parseLocalDateTime(value: string): string | null {
 export default function NewNightOutScreen() {
   const { crewId } = useLocalSearchParams<{ crewId?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [crew, setCrew] = useState<Crew | null>(null);
   const [members, setMembers] = useState<CrewMemberWithProfile[]>([]);
@@ -191,7 +193,7 @@ export default function NewNightOutScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 14 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

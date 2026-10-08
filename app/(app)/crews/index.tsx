@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   createCrew,
@@ -39,6 +40,7 @@ type CrewMembersMap = Record<string, CrewMemberWithProfile[]>;
 
 export default function CrewsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [crews, setCrews] = useState<Crew[]>([]);
   const [membersByCrew, setMembersByCrew] = useState<CrewMembersMap>({});
@@ -133,7 +135,7 @@ export default function CrewsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
         style={styles.list}
         data={crews}

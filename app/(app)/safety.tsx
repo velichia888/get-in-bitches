@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth-context';
@@ -55,6 +56,7 @@ type BlockedUser = {
 
 export default function Safety() {
   const { session } = useAuth();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
   const userId = session?.user.id;
@@ -90,7 +92,7 @@ export default function Safety() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 18 }]}
       data={blocked}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth-context';
@@ -33,6 +34,7 @@ type OpenRide = {
 export default function Home() {
   const { session } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -183,7 +185,7 @@ export default function Home() {
 
   if (profile?.role === 'driver') {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 18 }]}>
         <View style={styles.brandRow}>
           <Text style={styles.brand}>GIB</Text>
           <Ionicons name="sparkles" size={12} color={colors.accent} />
@@ -276,7 +278,7 @@ export default function Home() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 18 }]}>
       <View style={styles.brandRow}>
         <Text style={styles.brand}>GIB</Text>
         <Ionicons name="sparkles" size={12} color={colors.accent} />
@@ -365,7 +367,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 20,
-    paddingTop: 18,
   },
   center: {
     flex: 1,
