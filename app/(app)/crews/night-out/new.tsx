@@ -38,9 +38,7 @@ function parseLocalDateTime(value: string): string | null {
   const date = new Date(normalized);
 
   if (Number.isNaN(date.getTime())) {
-    throw new Error(
-      'Use a date and time like 2026-10-10 19:30.'
-    );
+    throw new Error('Use a date and time like 2026-10-10 19:30.');
   }
 
   return date.toISOString();
@@ -195,103 +193,159 @@ export default function NewNightOutScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="moon" size={27} color={colors.accent} />
+        <View style={styles.topBar}>
+          <Pressable style={styles.iconButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={21} color={colors.blush} />
+          </Pressable>
+
+          <View style={styles.brandWrap}>
+            <Text style={styles.brand}>GIB</Text>
+            <Ionicons name="sparkles" size={12} color={colors.accent} />
           </View>
 
-          <Text style={styles.eyebrow}>PLAN THE NIGHT</Text>
-          <Text style={styles.title}>Night Out</Text>
-          <Text style={styles.subtitle}>
-            Who's going, where you're headed, and how everybody plans
-            to get home.
-          </Text>
-
-          {crew ? (
-            <View style={styles.crewPill}>
-              <Ionicons
-                name="people"
-                size={15}
-                color={colors.accent}
-              />
-              <Text style={styles.crewPillText}>{crew.name}</Text>
-            </View>
-          ) : null}
+          <View style={styles.iconButton}>
+            <Ionicons name="moon-outline" size={20} color={colors.blushMuted} />
+          </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>What's the plan?</Text>
+        <View style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.eyebrow}>PLAN A NIGHT OUT</Text>
+            <Text style={styles.heroTitle}>Same people.</Text>
+            <Text style={styles.heroTitleAccent}>Safer nights.</Text>
+            <Text style={styles.heroSubtitle}>
+              Set the plan once, keep your Crew on the same page, and make
+              getting everybody home part of the night from the start.
+            </Text>
+
+            {crew ? (
+              <View style={styles.crewPill}>
+                <Ionicons name="people-outline" size={15} color={colors.blush} />
+                <Text style={styles.crewPillText}>{crew.name}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.heroArt}>
+            <Ionicons name="moon" size={58} color={colors.blushStrong} />
+            <Ionicons
+              name="sparkles"
+              size={18}
+              color={colors.accent}
+              style={styles.heroSparkleOne}
+            />
+            <Ionicons
+              name="sparkles"
+              size={12}
+              color={colors.blushMuted}
+              style={styles.heroSparkleTwo}
+            />
+          </View>
+        </View>
+
+        <View style={styles.progressCard}>
+          {[
+            ['01', 'The plan'],
+            ['02', "Who's going"],
+            ['03', 'Get home'],
+          ].map(([number, label], index) => (
+            <View key={number} style={styles.progressItem}>
+              <View style={styles.progressDot}>
+                <Text style={styles.progressNumber}>{number}</Text>
+              </View>
+              <Text style={styles.progressLabel}>{label}</Text>
+              {index < 2 ? <View style={styles.progressLine} /> : null}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <Text style={styles.sectionNumber}>01</Text>
+            <View style={styles.sectionHeadingCopy}>
+              <Text style={styles.sectionTitle}>The plan</Text>
+              <Text style={styles.sectionSubtitle}>
+                Give everyone the basics before the night starts.
+              </Text>
+            </View>
+          </View>
 
           <Text style={styles.label}>Night Out name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Saturday Night"
-            placeholderTextColor={colors.textMuted}
-            value={name}
-            onChangeText={setName}
-            maxLength={80}
-            editable={!creating}
-          />
+          <View style={styles.inputShell}>
+            <Ionicons name="sparkles-outline" size={18} color={colors.blushMuted} />
+            <TextInput
+              style={styles.input}
+              placeholder="Saturday Night"
+              placeholderTextColor={colors.textSubtle}
+              value={name}
+              onChangeText={setName}
+              maxLength={80}
+              editable={!creating}
+            />
+          </View>
 
           <Text style={styles.label}>Destination</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Old Town Scottsdale"
-            placeholderTextColor={colors.textMuted}
-            value={destination}
-            onChangeText={setDestination}
-            maxLength={120}
-            editable={!creating}
-          />
+          <View style={styles.inputShell}>
+            <Ionicons name="location-outline" size={19} color={colors.blushMuted} />
+            <TextInput
+              style={styles.input}
+              placeholder="Old Town Scottsdale"
+              placeholderTextColor={colors.textSubtle}
+              value={destination}
+              onChangeText={setDestination}
+              maxLength={120}
+              editable={!creating}
+            />
+          </View>
 
-          <Text style={styles.label}>Starts</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="2026-10-10 19:30"
-            placeholderTextColor={colors.textMuted}
-            value={startsAt}
-            onChangeText={setStartsAt}
-            autoCapitalize="none"
-            editable={!creating}
-          />
+          <View style={styles.twoColumn}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Starts</Text>
+              <View style={styles.inputShell}>
+                <Ionicons name="time-outline" size={18} color={colors.blushMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="2026-10-10 19:30"
+                  placeholderTextColor={colors.textSubtle}
+                  value={startsAt}
+                  onChangeText={setStartsAt}
+                  autoCapitalize="none"
+                  editable={!creating}
+                />
+              </View>
+            </View>
+
+            <View style={styles.column}>
+              <Text style={styles.label}>Head home</Text>
+              <View style={styles.inputShell}>
+                <Ionicons name="home-outline" size={18} color={colors.blushMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="2026-10-11 00:30"
+                  placeholderTextColor={colors.textSubtle}
+                  value={plannedReturnAt}
+                  onChangeText={setPlannedReturnAt}
+                  autoCapitalize="none"
+                  editable={!creating}
+                />
+              </View>
+            </View>
+          </View>
 
           <Text style={styles.help}>
-            Use YYYY-MM-DD HH:MM for now. We'll replace this with the
-            native date/time picker during the UI pass.
+            Use YYYY-MM-DD HH:MM for now.
           </Text>
-
-          <Text style={styles.label}>Plan to head home around</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="2026-10-11 00:30"
-            placeholderTextColor={colors.textMuted}
-            value={plannedReturnAt}
-            onChangeText={setPlannedReturnAt}
-            autoCapitalize="none"
-            editable={!creating}
-          />
-
-          <Text style={styles.label}>Transportation plan</Text>
-          <TextInput
-            style={[styles.input, styles.multilineInput]}
-            placeholder="Dinner → Bar → GIB ride home"
-            placeholderTextColor={colors.textMuted}
-            value={transportationPlan}
-            onChangeText={setTransportationPlan}
-            multiline
-            textAlignVertical="top"
-            maxLength={240}
-            editable={!creating}
-          />
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.participantHeader}>
-            <View style={styles.participantHeading}>
-              <Text style={styles.sectionTitle}>Who's coming?</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <Text style={styles.sectionNumber}>02</Text>
+            <View style={styles.sectionHeadingCopy}>
+              <Text style={styles.sectionTitle}>Who's going?</Text>
               <Text style={styles.sectionSubtitle}>
-                {selectedCount} selected
+                {selectedCount} of {members.length} selected
               </Text>
             </View>
 
@@ -308,96 +362,114 @@ export default function NewNightOutScreen() {
             ) : null}
           </View>
 
-          {members.map((member) => {
-            const selected = selectedIds.includes(member.profile_id);
-            const nameValue =
-              member.profiles?.full_name || 'Crew member';
+          <View style={styles.memberList}>
+            {members.map((member) => {
+              const selected = selectedIds.includes(member.profile_id);
+              const nameValue = member.profiles?.full_name || 'Crew member';
 
-            return (
-              <Pressable
-                key={member.profile_id}
-                style={[
-                  styles.memberRow,
-                  selected && styles.memberRowSelected,
-                ]}
-                onPress={() => toggleParticipant(member.profile_id)}
-                disabled={creating}
-              >
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberInitial}>
-                    {nameValue.trim()[0]?.toUpperCase() ?? '?'}
-                  </Text>
-                </View>
+              return (
+                <Pressable
+                  key={member.profile_id}
+                  style={[
+                    styles.memberRow,
+                    selected && styles.memberRowSelected,
+                  ]}
+                  onPress={() => toggleParticipant(member.profile_id)}
+                  disabled={creating}
+                >
+                  <View style={[styles.memberAvatar, selected && styles.memberAvatarSelected]}>
+                    <Text style={styles.memberInitial}>
+                      {nameValue.trim()[0]?.toUpperCase() ?? '?'}
+                    </Text>
+                  </View>
 
-                <View style={styles.memberInfo}>
-                  <Text style={styles.memberName}>{nameValue}</Text>
-                  <Text style={styles.memberRole}>
-                    {member.role === 'owner' ? 'Crew owner' : 'Member'}
-                  </Text>
-                </View>
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName}>{nameValue}</Text>
+                    <Text style={styles.memberRole}>
+                      {member.role === 'owner' ? 'Crew owner' : 'Crew member'}
+                    </Text>
+                  </View>
 
-                <Ionicons
-                  name={
-                    selected
-                      ? 'checkmark-circle'
-                      : 'ellipse-outline'
-                  }
-                  size={26}
-                  color={
-                    selected ? colors.accent : colors.textMuted
-                  }
-                />
-              </Pressable>
-            );
-          })}
+                  <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
+                    {selected ? (
+                      <Ionicons name="checkmark" size={16} color={colors.ink} />
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <Text style={styles.sectionNumber}>03</Text>
+            <View style={styles.sectionHeadingCopy}>
+              <Text style={styles.sectionTitle}>Get home plan</Text>
+              <Text style={styles.sectionSubtitle}>
+                Make the end of the night part of the plan now.
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.label}>Transportation plan</Text>
+          <View style={[styles.inputShell, styles.multilineShell]}>
+            <Ionicons
+              name="car-outline"
+              size={19}
+              color={colors.blushMuted}
+              style={styles.multilineIcon}
+            />
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              placeholder="Dinner → Bar → GIB ride home"
+              placeholderTextColor={colors.textSubtle}
+              value={transportationPlan}
+              onChangeText={setTransportationPlan}
+              multiline
+              textAlignVertical="top"
+              maxLength={240}
+              editable={!creating}
+            />
+          </View>
+
+          <View style={styles.homeSafeNote}>
+            <View style={styles.homeSafeIcon}>
+              <Ionicons name="shield-checkmark-outline" size={19} color={colors.accent} />
+            </View>
+            <View style={styles.homeSafeCopy}>
+              <Text style={styles.homeSafeTitle}>Built for Home Safe</Text>
+              <Text style={styles.homeSafeText}>
+                This Night Out becomes the shared safety context for your Crew
+                from going out through getting everybody home.
+              </Text>
+            </View>
+          </View>
         </View>
 
         {error ? (
           <View style={styles.errorCard}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={19}
-              color={colors.danger}
-            />
+            <Ionicons name="alert-circle-outline" size={19} color={colors.danger} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
 
         <Pressable
-          style={[
-            styles.primaryButton,
-            creating && styles.disabledButton,
-          ]}
+          style={[styles.primaryButton, creating && styles.disabledButton]}
           onPress={() => void handleCreate()}
           disabled={creating}
         >
           {creating ? (
-            <ActivityIndicator color={colors.text} />
+            <ActivityIndicator color={colors.ink} />
           ) : (
             <>
-              <Ionicons
-                name="sparkles"
-                size={19}
-                color={colors.text}
-              />
-              <Text style={styles.primaryButtonText}>
-                Plan Night Out
-              </Text>
+              <Text style={styles.primaryButtonText}>PLAN THIS NIGHT</Text>
+              <Ionicons name="arrow-forward" size={19} color={colors.ink} />
             </>
           )}
         </Pressable>
 
-        <View style={styles.safetyNote}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={19}
-            color={colors.accent}
-          />
-          <Text style={styles.safetyNoteText}>
-            This Night Out becomes the shared safety context for your
-            Crew — from going out through getting everybody Home Safe.
-          </Text>
-        </View>
+        <Text style={styles.footerLine}>GOOD FRIENDS / SAFER NIGHTS</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -415,196 +487,391 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 42,
+    maxWidth: 760,
+    width: '100%',
+    alignSelf: 'center',
   },
-  hero: {
-    marginBottom: spacing.lg,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  heroIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.accentSoft,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.backgroundElevated,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+  },
+  brandWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+  },
+  brand: {
+    color: colors.blush,
+    fontFamily: 'Georgia',
+    fontSize: 25,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  hero: {
+    minHeight: 190,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 24,
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  heroCopy: {
+    flex: 1,
   },
   eyebrow: {
+    color: colors.blushMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2.1,
+    marginBottom: 9,
+  },
+  heroTitle: {
+    color: colors.blush,
+    fontFamily: 'Georgia',
+    fontSize: 36,
+    lineHeight: 39,
+  },
+  heroTitleAccent: {
     color: colors.accent,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    marginBottom: spacing.xs,
+    fontFamily: 'Georgia',
+    fontSize: 36,
+    lineHeight: 39,
+    marginBottom: 12,
   },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
+  heroSubtitle: {
     color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: 470,
   },
   crewPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accentSoft,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
+    gap: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 11,
     paddingVertical: 7,
-    marginTop: spacing.md,
+    marginTop: 13,
   },
   crewPillText: {
-    color: colors.accent,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  sectionSubtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: spacing.xs,
-  },
-  label: {
-    color: colors.text,
-    fontWeight: '700',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    padding: spacing.md,
-    fontSize: 16,
-  },
-  multilineInput: {
-    minHeight: 90,
-  },
-  help: {
-    color: colors.textMuted,
+    color: colors.blush,
     fontSize: 12,
-    lineHeight: 18,
-    marginTop: spacing.xs,
+    fontWeight: '700',
   },
-  participantHeader: {
+  heroArt: {
+    width: 106,
+    height: 126,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  heroSparkleOne: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+  },
+  heroSparkleTwo: {
+    position: 'absolute',
+    bottom: 13,
+    left: 3,
+  },
+  progressCard: {
+    flexDirection: 'row',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundElevated,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    marginBottom: 18,
+  },
+  progressItem: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  progressDot: {
+    minWidth: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.blushMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    zIndex: 2,
+  },
+  progressNumber: {
+    color: colors.blush,
+    fontFamily: 'Georgia',
+    fontSize: 11,
+  },
+  progressLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  progressLine: {
+    position: 'absolute',
+    height: 1,
+    backgroundColor: colors.accent,
+    width: '52%',
+    right: '-26%',
+    top: 15,
+  },
+  section: {
+    backgroundColor: colors.backgroundElevated,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 17,
+    marginBottom: 14,
+  },
+  sectionHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginBottom: 15,
+    gap: 12,
   },
-  participantHeading: {
+  sectionNumber: {
+    color: colors.blushStrong,
+    fontFamily: 'Georgia',
+    fontSize: 29,
+    lineHeight: 32,
+  },
+  sectionHeadingCopy: {
     flex: 1,
   },
+  sectionTitle: {
+    color: colors.blush,
+    fontFamily: 'Georgia',
+    fontSize: 21,
+  },
+  sectionSubtitle: {
+    color: colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  label: {
+    color: colors.blushMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 7,
+    marginTop: 12,
+    textTransform: 'uppercase',
+  },
+  inputShell: {
+    minHeight: 50,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 13,
+  },
+  input: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
+    paddingVertical: 13,
+    minWidth: 0,
+  },
+  twoColumn: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  column: {
+    flex: 1,
+  },
+  help: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    marginTop: 7,
+  },
   selectAllButton: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentWash,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   selectAllText: {
-    color: colors.accent,
-    fontWeight: '700',
+    color: colors.accentBright,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  memberList: {
+    gap: 8,
   },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.sm,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    padding: 10,
   },
   memberRowSelected: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
+    borderColor: colors.blushMuted,
+    backgroundColor: '#1D151B',
   },
   memberAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 39,
+    height: 39,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
+    marginRight: 10,
+  },
+  memberAvatarSelected: {
+    borderColor: colors.blushStrong,
+    backgroundColor: colors.accentWash,
   },
   memberInitial: {
-    color: colors.accent,
-    fontWeight: '800',
+    color: colors.blush,
+    fontFamily: 'Georgia',
     fontSize: 16,
+    fontWeight: '700',
   },
   memberInfo: {
     flex: 1,
   },
   memberName: {
     color: colors.text,
+    fontSize: 13,
     fontWeight: '700',
   },
   memberRole: {
-    color: colors.textMuted,
-    fontSize: 12,
+    color: colors.textSubtle,
+    fontSize: 10,
     marginTop: 2,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkCircleSelected: {
+    backgroundColor: colors.blushStrong,
+    borderColor: colors.blushStrong,
+  },
+  multilineShell: {
+    minHeight: 94,
+    alignItems: 'flex-start',
+  },
+  multilineIcon: {
+    marginTop: 14,
+  },
+  multilineInput: {
+    minHeight: 88,
+    paddingTop: 13,
+  },
+  homeSafeNote: {
+    flexDirection: 'row',
+    gap: 11,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 14,
+    marginTop: 15,
+  },
+  homeSafeIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    backgroundColor: colors.accentWash,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  homeSafeCopy: {
+    flex: 1,
+  },
+  homeSafeTitle: {
+    color: colors.blush,
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  homeSafeText: {
+    color: colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 16,
   },
   errorCard: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
+    gap: 8,
+    backgroundColor: colors.backgroundElevated,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.danger,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    padding: 13,
+    marginBottom: 14,
   },
   errorText: {
     color: colors.danger,
     flex: 1,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
   },
   primaryButton: {
+    minHeight: 54,
+    borderRadius: radius.pill,
+    backgroundColor: colors.blushStrong,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    padding: spacing.md,
+    gap: 9,
+    marginTop: 3,
   },
   primaryButtonText: {
-    color: colors.text,
-    fontWeight: '800',
-    fontSize: 16,
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.3,
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
-  safetyNote: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  safetyNoteText: {
-    color: colors.textMuted,
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
+  footerLine: {
+    color: colors.textSubtle,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginTop: 17,
   },
 });

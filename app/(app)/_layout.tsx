@@ -9,7 +9,14 @@ export default function AppLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <ActivityIndicator color={colors.accent} />
       </View>
     );
@@ -24,9 +31,30 @@ export default function AppLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
+        headerShadowVisible: false,
+        tabBarStyle: {
+          backgroundColor: '#100C0F',
+          borderTopWidth: 1,
+          borderTopColor: '#3A2A33',
+          height: 74,
+          paddingHorizontal: 8,
+          paddingTop: 8,
+          paddingBottom: 9,
+          width: '100%',
+          maxWidth: 460,
+          alignSelf: 'center',
+        },
+        tabBarItemStyle: {
+          borderRadius: 16,
+          marginHorizontal: 2,
+        },
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+        },
+        tabBarActiveTintColor: colors.accentBright,
+        tabBarInactiveTintColor: colors.textSubtle,
       }}
     >
       <Tabs.Screen
@@ -34,8 +62,12 @@ export default function AppLayout() {
         options={{
           title: 'Crews',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'people' : 'people-outline'}
+              color={color}
+              size={focused ? size + 2 : size}
+            />
           ),
         }}
       />
@@ -43,8 +75,12 @@ export default function AppLayout() {
         name="index"
         options={{
           title: 'Ride',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="car-sport" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'car-sport' : 'car-sport-outline'}
+              color={color}
+              size={focused ? size + 2 : size}
+            />
           ),
         }}
       />
@@ -52,14 +88,26 @@ export default function AppLayout() {
         name="safety"
         options={{
           title: 'Safety',
-          tabBarIcon: ({ color, size }) => <Ionicons name="shield-checkmark" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'}
+              color={color}
+              size={focused ? size + 2 : size}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'person' : 'person-outline'}
+              color={color}
+              size={focused ? size + 2 : size}
+            />
+          ),
         }}
       />
       <Tabs.Screen name="ride" options={{ href: null, headerShown: false }} />

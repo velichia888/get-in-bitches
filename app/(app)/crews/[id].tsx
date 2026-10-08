@@ -1,14 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  Image,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuth } from '../../../lib/auth-context';
@@ -22,7 +23,17 @@ import type {
   CrewMemberWithProfile,
   NightOut,
 } from '../../../lib/crew-types';
-import { colors, radius, spacing } from '../../../lib/theme';
+import {
+  cardAssetForStyle,
+  crewCardStyleOptions,
+  fallbackCardStyleForIndex,
+  type CrewCardStyle,
+} from '../../../components/GibCardAssets';
+import {
+  loadCrewCardStyles,
+  saveCrewCardStyle,
+} from '../../../lib/crew-card-style';
+import { colors } from '../../../lib/theme';
 
 export default function CrewDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +43,7 @@ export default function CrewDetailScreen() {
   const [crew, setCrew] = useState<Crew | null>(null);
   const [members, setMembers] = useState<CrewMemberWithProfile[]>([]);
   const [nightOuts, setNightOuts] = useState<NightOut[]>([]);
+  const [cardStyle, setCardStyle] = useState<CrewCardStyle>('disco');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +53,17 @@ export default function CrewDetailScreen() {
   const isOwner = useMemo(
     () => !!crew && !!userId && crew.owner_id === userId,
     [crew, userId]
+  );
+
+  const upcomingNightOuts = useMemo(
+    () =>
+      nightOuts.filter(
+        (nightOut) =>
+          nightOut.status === 'planned' ||
+          nightOut.status === 'active' ||
+          nightOut.status === 'getting_home'
+      ),
+    [nightOuts]
   );
 
   const load = useCallback(
@@ -60,19 +83,23 @@ export default function CrewDetailScreen() {
       setError(null);
 
       try {
-        const [crewData, memberData, nightOutData] = await Promise.all([
-          getCrew(id),
-          listCrewMembers(id),
-          listNightOuts(id),
-        ]);
+        const [crewData, memberData, nightOutData, storedStyles] =
+          await Promise.all([
+            getCrew(id),
+            listCrewMembers(id),
+            listNightOuts(id),
+            loadCrewCardStyles(),
+          ]);
 
         setCrew(crewData);
         setMembers(memberData);
         setNightOuts(nightOutData);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Could not load this Crew.'
+        setCardStyle(
+          storedStyles[id] ??
+            fallbackCardStyleForIndex(stableStyleIndex(crewData.id))
         );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not load this Crew.');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -87,6 +114,13 @@ export default function CrewDetailScreen() {
     }, [load])
   );
 
+  async function handleVibeChange(nextStyle: CrewCardStyle) {
+    if (!crew) return;
+
+    setCardStyle(nextStyle);
+    await saveCrewCardStyle(crew.id, nextStyle);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -97,27 +131,25 @@ export default function CrewDetailScreen() {
 
   if (!crew) {
     return (
-      <View style={styles.container}>
-        <View style={styles.errorCard}>
-          <Ionicons name="alert-circle-outline" size={28} color={colors.danger} />
-          <Text style={styles.errorTitle}>Crew unavailable</Text>
-          <Text style={styles.errorText}>
-            {error ?? 'This Crew could not be loaded.'}
-          </Text>
-
-          <Pressable style={styles.retryButton} onPress={() => void load()}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </Pressable>
-        </View>
+      <View style={styles.center}>
+        <Ionicons name="alert-circle-outline" size={30} color={colors.danger} />
+        <Text style={styles.errorTitle}>Crew unavailable</Text>
+        <Text style={styles.errorText}>
+          {error ?? 'This Crew could not be loaded.'}
+        </Text>
+        <Pressable style={styles.retryButton} onPress={() => void load()}>
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </Pressable>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={members}
-        keyExtractor={(item) => item.profile_id}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -125,548 +157,839 @@ export default function CrewDetailScreen() {
             tintColor={colors.accent}
           />
         }
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <>
-            <View style={styles.hero}>
-              <View style={styles.heroIcon}>
-                <Ionicons name="people" size={28} color={colors.accent} />
-              </View>
+      >
+        <View style={styles.topBar}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.push('/(app)/crews')}
+          >
+            <Ionicons name="chevron-back" size={22} color="#FF6AAA" />
+            <Text style={styles.backText}>Crews</Text>
+          </Pressable>
 
-              <Text style={styles.eyebrow}>YOUR CREW</Text>
-              <Text style={styles.title}>{crew.name}</Text>
-              <Text style={styles.subtitle}>
-                The people you plan with, ride with, and make sure get home safe.
+          <Pressable style={styles.moreButton}>
+            <Ionicons name="ellipsis-horizontal" size={22} color="#F5D8E3" />
+          </Pressable>
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroArtFrame}>
+            <Image
+              source={{ uri: cardAssetForStyle(cardStyle) }}
+              style={styles.heroImage}
+              resizeMode="contain"
+            />
+          </View>
+
+          <View style={styles.heroSparkOne}>
+            <MaterialCommunityIcons
+              name="star-four-points"
+              size={22}
+              color="#F7D9E4"
+            />
+          </View>
+          <View style={styles.heroSparkTwo}>
+            <MaterialCommunityIcons
+              name="star-four-points"
+              size={15}
+              color="#FF4B9B"
+            />
+          </View>
+        </View>
+
+        <Text style={styles.crewTitle}>{crew.name}</Text>
+        <Text style={styles.crewMeta}>
+          {members.length} {members.length === 1 ? 'member' : 'members'}  •  Created{' '}
+          {formatMonthYear(crew.created_at)}
+        </Text>
+
+        <View style={styles.actionRow}>
+          {isOwner ? (
+            <ActionButton
+              icon="person-add"
+              label="Invite"
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)/crews/invite',
+                  params: { crewId: crew.id, crewName: crew.name },
+                })
+              }
+            />
+          ) : (
+            <ActionButton icon="people" label="Members" />
+          )}
+
+          <ActionButton
+            icon="calendar"
+            label="Plan Night"
+            onPress={() =>
+              router.push({
+                pathname: '/(app)/crews/night-out/new',
+                params: { crewId: crew.id },
+              })
+            }
+          />
+
+          <ActionButton
+            icon="moon"
+            label="Plans"
+            onPress={() => {
+              const nextNight = upcomingNightOuts[0];
+              if (nextNight) {
+                router.push({
+                  pathname: '/(app)/crews/night-out/[nightOutId]',
+                  params: { nightOutId: nextNight.id },
+                });
+              } else {
+                router.push({
+                  pathname: '/(app)/crews/night-out/new',
+                  params: { crewId: crew.id },
+                });
+              }
+            }}
+          />
+
+          <ActionButton
+            icon="shield-checkmark"
+            label="Safety"
+            onPress={() => router.push('/(app)/safety')}
+          />
+        </View>
+
+        <View style={styles.vibeMessage}>
+          <View style={styles.vibeMessageIcon}>
+            <Ionicons name="sparkles" size={22} color="#FF5FAE" />
+          </View>
+          <Text style={styles.vibeMessageText}>
+            Good nights, good company, and everyone getting home safe.
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color="#E7B3C8" />
+        </View>
+
+        {error ? (
+          <View style={styles.inlineError}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={17}
+              color={colors.danger}
+            />
+            <Text style={styles.inlineErrorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <SectionHeader title="Members" action="See all" />
+
+        <View style={styles.membersRow}>
+          {members.slice(0, 6).map((member) => {
+            const displayName = member.profiles?.full_name?.trim() || 'Crew';
+            const isCurrentUser = member.profile_id === userId;
+
+            return (
+              <View key={member.profile_id} style={styles.memberItem}>
+                <View
+                  style={[
+                    styles.memberAvatar,
+                    isCurrentUser && styles.memberAvatarYou,
+                  ]}
+                >
+                  {member.role === 'owner' ? (
+                    <Ionicons
+                      name="star"
+                      size={10}
+                      color="#FF5FAE"
+                      style={styles.memberCrown}
+                    />
+                  ) : null}
+                  <Text style={styles.memberInitial}>
+                    {(displayName[0] || '?').toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.memberName} numberOfLines={1}>
+                  {isCurrentUser ? 'You' : firstName(displayName)}
+                </Text>
+                {isCurrentUser ? (
+                  <Text style={styles.memberRole}>Admin</Text>
+                ) : null}
+              </View>
+            );
+          })}
+
+          {members.length > 6 ? (
+            <View style={styles.memberItem}>
+              <View style={styles.memberAvatar}>
+                <Text style={styles.memberInitial}>+{members.length - 6}</Text>
+              </View>
+              <Text style={styles.memberName}>More</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <SectionHeader title="Upcoming Plans" action="See all" />
+
+        {upcomingNightOuts.length ? (
+          <View style={styles.planStack}>
+            {upcomingNightOuts.slice(0, 3).map((nightOut) => (
+              <Pressable
+                key={nightOut.id}
+                style={({ pressed }) => [
+                  styles.planCard,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(app)/crews/night-out/[nightOutId]',
+                    params: { nightOutId: nightOut.id },
+                  })
+                }
+              >
+                <View style={styles.planDate}>
+                  <Text style={styles.planMonth}>
+                    {formatPlanDate(nightOut.starts_at).month}
+                  </Text>
+                  <Text style={styles.planDay}>
+                    {formatPlanDate(nightOut.starts_at).day}
+                  </Text>
+                </View>
+
+                <View style={styles.planInfo}>
+                  <Text style={styles.planName}>{nightOut.name}</Text>
+                  <Text style={styles.planMeta} numberOfLines={1}>
+                    {formatPlanTime(nightOut.starts_at)} •{' '}
+                    {nightOut.destination_name || 'Destination TBD'}
+                  </Text>
+                </View>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={21}
+                  color="#F5D9E4"
+                />
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyPlans}>
+            <Ionicons name="moon-outline" size={25} color="#FF5FAE" />
+            <View style={styles.emptyPlansCopy}>
+              <Text style={styles.emptyPlansTitle}>No plans yet</Text>
+              <Text style={styles.emptyPlansText}>
+                Give the Crew something to look forward to.
               </Text>
             </View>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{members.length}</Text>
-                <Text style={styles.statLabel}>
-                  {members.length === 1 ? 'Person' : 'People'}
-                </Text>
-              </View>
-
-              <View style={styles.statCard}>
-                <Ionicons
-                  name={isOwner ? 'star' : 'people-circle-outline'}
-                  size={22}
-                  color={colors.accent}
-                />
-                <Text style={styles.statLabel}>
-                  {isOwner ? 'You own this Crew' : 'Crew member'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Your people</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Everyone currently in this Crew.
-                </Text>
-              </View>
-
-              {isOwner && (
-                <View style={styles.ownerBadge}>
-                  <Ionicons name="star" size={13} color={colors.accent} />
-                  <Text style={styles.ownerBadgeText}>Owner</Text>
-                </View>
-              )}
-            </View>
-
-            {error && <Text style={styles.errorInline}>{error}</Text>}
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Nobody here yet</Text>
-            <Text style={styles.emptyText}>
-              This Crew does not have any visible members yet.
-            </Text>
           </View>
-        }
-        renderItem={({ item }) => {
-          const isCurrentUser = item.profile_id === userId;
+        )}
 
-          return (
-            <View style={styles.memberCard}>
-              <View style={styles.memberAvatar}>
-                <Text style={styles.memberInitial}>
-                  {(item.profiles?.full_name?.trim()?.[0] ?? '?').toUpperCase()}
-                </Text>
-              </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.planNightButton,
+            pressed && styles.pressed,
+          ]}
+          onPress={() =>
+            router.push({
+              pathname: '/(app)/crews/night-out/new',
+              params: { crewId: crew.id },
+            })
+          }
+        >
+          <Ionicons name="calendar" size={20} color="#140E12" />
+          <Text style={styles.planNightButtonText}>Plan a Night Out</Text>
+          <Ionicons name="chevron-forward" size={21} color="#140E12" />
+        </Pressable>
 
-              <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>
-                  {item.profiles?.full_name || 'Crew member'}
-                  {isCurrentUser ? ' · You' : ''}
-                </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Crew Vibes</Text>
+          <Text style={styles.editText}>Edit</Text>
+        </View>
 
-                <View style={styles.roleRow}>
-                  <Ionicons
-                    name={item.role === 'owner' ? 'star' : 'person'}
-                    size={13}
-                    color={
-                      item.role === 'owner'
-                        ? colors.accent
-                        : colors.textMuted
-                    }
-                  />
+        <View style={styles.vibeGrid}>
+          {crewCardStyleOptions.map((option) => {
+            const selected = option.value === cardStyle;
+
+            return (
+              <Pressable
+                key={option.value}
+                style={[
+                  styles.vibeTile,
+                  selected && styles.vibeTileSelected,
+                ]}
+                onPress={() => void handleVibeChange(option.value)}
+              >
+                <Image
+                  source={{ uri: cardAssetForStyle(option.value) }}
+                  style={styles.vibeTileImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.vibeTileFooter}>
                   <Text
                     style={[
-                      styles.memberRole,
-                      item.role === 'owner' && styles.memberRoleOwner,
+                      styles.vibeTileText,
+                      selected && styles.vibeTileTextSelected,
                     ]}
                   >
-                    {item.role === 'owner' ? 'Crew owner' : 'Member'}
+                    {option.label}
                   </Text>
-                </View>
-              </View>
-            </View>
-          );
-        }}
-        ListFooterComponent={
-          <View>
-            <View style={styles.nightOutSection}>
-              <View style={styles.nightOutHeader}>
-                <View style={styles.nightOutHeading}>
-                  <Text style={styles.sectionTitle}>Night Outs</Text>
-                  <Text style={styles.sectionSubtitle}>
-                    Plan the night, who's going, and how everybody gets home.
-                  </Text>
-                </View>
-
-                <Pressable
-                  style={styles.planButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(app)/crews/night-out/new',
-                      params: { crewId: crew.id },
-                    })
-                  }
-                >
-                  <Ionicons
-                    name="moon"
-                    size={17}
-                    color={colors.text}
-                  />
-                  <Text style={styles.planButtonText}>Plan</Text>
-                </Pressable>
-              </View>
-
-              {nightOuts.length === 0 ? (
-                <View style={styles.noNightOutCard}>
-                  <Ionicons
-                    name="moon-outline"
-                    size={27}
-                    color={colors.textMuted}
-                  />
-                  <Text style={styles.noNightOutTitle}>
-                    Nothing planned yet
-                  </Text>
-                  <Text style={styles.noNightOutText}>
-                    Start a Night Out and choose who's coming.
-                  </Text>
-                </View>
-              ) : (
-                nightOuts.map((nightOut) => (
-                  <Pressable
-                    key={nightOut.id}
-                    style={styles.nightOutCard}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(app)/crews/night-out/[nightOutId]',
-                        params: { nightOutId: nightOut.id },
-                      })
-                    }
-                  >
-                    <View style={styles.nightOutIcon}>
-                      <Ionicons
-                        name="moon"
-                        size={20}
-                        color={colors.accent}
-                      />
-                    </View>
-
-                    <View style={styles.nightOutInfo}>
-                      <Text style={styles.nightOutName}>
-                        {nightOut.name}
-                      </Text>
-                      <Text style={styles.nightOutMeta}>
-                        {nightOut.destination_name || 'Destination not set'}
-                      </Text>
-                    </View>
-
+                  {selected ? (
                     <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={colors.textMuted}
+                      name="checkmark-circle"
+                      size={16}
+                      color="#FF4B9B"
                     />
-                  </Pressable>
-                ))
-              )}
-            </View>
-
-            {isOwner ? (
-              <View style={styles.ownerActions}>
-                <View style={styles.ownerActionHeader}>
-                  <Ionicons
-                    name="person-add-outline"
-                    size={22}
-                    color={colors.accent}
-                  />
-                  <View style={styles.ownerActionText}>
-                    <Text style={styles.ownerActionTitle}>
-                      Add your people
-                    </Text>
-                    <Text style={styles.ownerActionSubtitle}>
-                      Add someone who already has a GIB account.
-                    </Text>
-                  </View>
+                  ) : null}
                 </View>
+              </Pressable>
+            );
+          })}
+        </View>
 
-                <Pressable
-                  style={styles.inviteAction}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(app)/crews/invite',
-                      params: {
-                        crewId: crew.id,
-                        crewName: crew.name,
-                      },
-                    })
-                  }
-                >
-                  <Text style={styles.inviteActionText}>
-                    Invite member
-                  </Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={colors.accent}
-                  />
-                </Pressable>
-              </View>
-            ) : null}
+        <SectionHeader title="Home Safe" />
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.homeSafeCard,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => router.push('/(app)/safety')}
+        >
+          <View style={styles.homeSafeIcon}>
+            <Ionicons name="shield-checkmark" size={28} color="#FF5FAE" />
           </View>
-        }
-      />
+
+          <View style={styles.homeSafeCopy}>
+            <Text style={styles.homeSafeTitle}>We look out for each other.</Text>
+            <Text style={styles.homeSafeText}>
+              Keep rides, check-ins, and the end of the night connected to the Crew.
+            </Text>
+          </View>
+
+          <Ionicons name="chevron-forward" size={21} color="#F6D6E2" />
+        </Pressable>
+      </ScrollView>
     </View>
   );
+}
+
+function ActionButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={styles.actionIcon}>
+        <Ionicons name={icon} size={22} color="#FF6AAA" />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function SectionHeader({
+  title,
+  action,
+}: {
+  title: string;
+  action?: string;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {action ? <Text style={styles.sectionAction}>{action}</Text> : null}
+    </View>
+  );
+}
+
+function stableStyleIndex(value: string) {
+  return Array.from(value).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+function firstName(value: string) {
+  return value.split(/\s+/)[0] || value;
+}
+
+function formatMonthYear(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'recently';
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatPlanDate(value: string | null) {
+  if (!value) return { month: 'TBD', day: '—' };
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { month: 'TBD', day: '—' };
+
+  return {
+    month: date
+      .toLocaleDateString('en-US', { month: 'short' })
+      .toUpperCase(),
+    day: date.toLocaleDateString('en-US', { day: '2-digit' }),
+  };
+}
+
+function formatPlanTime(value: string | null) {
+  if (!value) return 'Time TBD';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time TBD';
+
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080708',
   },
   center: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080708',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 28,
+  },
+  scroll: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
   },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 34,
   },
-  hero: {
-    marginBottom: spacing.lg,
+  pressed: {
+    opacity: 0.82,
   },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accentSoft,
+
+  topBar: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backText: {
+    color: '#FF6AAA',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  moreButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
   },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  statCard: {
-    flex: 1,
-    minHeight: 88,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+
+  heroCard: {
+    height: 132,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#120D11',
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    borderColor: '#472F3C',
+    position: 'relative',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: spacing.xs,
+  heroArtFrame: {
+    width: 250,
+    height: 92,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#100B0F',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
+  heroImage: {
+    width: 220,
+    height: 76,
   },
+  heroSparkOne: {
+    position: 'absolute',
+    right: 20,
+    top: 17,
+  },
+  heroSparkTwo: {
+    position: 'absolute',
+    left: 21,
+    bottom: 21,
+  },
+
+  crewTitle: {
+    color: '#F8E3EA',
+    fontFamily: 'Georgia',
+    fontSize: 40,
+    lineHeight: 45,
+    fontWeight: '700',
+    letterSpacing: -1.8,
+    marginTop: 14,
+  },
+  crewMeta: {
+    color: '#D4C2C9',
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 15,
+  },
+
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 15,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  actionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#24141E',
+    borderWidth: 1,
+    borderColor: '#3F2935',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
+    color: '#E9BACD',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+
+  vibeMessage: {
+    minHeight: 64,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4A303D',
+    backgroundColor: '#21131B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 13,
+    gap: 11,
+    marginBottom: 24,
+  },
+  vibeMessageIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#2E1723',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vibeMessageText: {
+    flex: 1,
+    color: '#EADCE2',
+    fontSize: 11,
+    lineHeight: 16,
+  },
+
+  inlineError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#241116',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 18,
+  },
+  inlineErrorText: {
+    flex: 1,
+    color: colors.danger,
+    fontSize: 11,
+  },
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginTop: 2,
+    marginBottom: 10,
   },
   sectionTitle: {
-    color: colors.text,
-    fontSize: 20,
+    color: '#F7DFE8',
+    fontFamily: 'Georgia',
+    fontSize: 27,
+    lineHeight: 32,
+    fontWeight: '700',
+    letterSpacing: -0.9,
+  },
+  sectionAction: {
+    color: '#FF5FAE',
+    fontSize: 11,
     fontWeight: '700',
   },
-  sectionSubtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: spacing.xs,
-  },
-  ownerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accentSoft,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  ownerBadgeText: {
-    color: colors.accent,
-    fontSize: 12,
+  editText: {
+    color: '#FF5FAE',
+    fontSize: 11,
     fontWeight: '700',
   },
-  errorInline: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-  memberCard: {
+
+  membersRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    marginBottom: 24,
+  },
+  memberItem: {
+    width: 49,
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
   },
   memberAvatar: {
-    width: 46,
-    height: 46,
+    width: 45,
+    height: 45,
     borderRadius: 23,
-    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: '#D98DAA',
+    backgroundColor: '#1D1319',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
+    position: 'relative',
+  },
+  memberAvatarYou: {
+    borderColor: '#FF5FAE',
+    borderWidth: 2,
+  },
+  memberCrown: {
+    position: 'absolute',
+    top: -7,
   },
   memberInitial: {
-    color: colors.accent,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  memberInfo: {
-    flex: 1,
+    color: '#F5DCE6',
+    fontSize: 15,
+    fontWeight: '700',
   },
   memberName: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    color: '#DCCBD2',
+    fontSize: 8,
+    marginTop: 5,
+    maxWidth: 48,
+    textAlign: 'center',
   },
   memberRole: {
-    color: colors.textMuted,
-    fontSize: 13,
+    color: '#8F7B84',
+    fontSize: 7,
+    marginTop: 1,
   },
-  memberRoleOwner: {
-    color: colors.accent,
-    fontWeight: '700',
+
+  planStack: {
+    gap: 8,
+    marginBottom: 10,
   },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+  planCard: {
+    minHeight: 74,
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  nightOutSection: {
-    marginTop: spacing.xl,
-  },
-  nightOutHeader: {
+    borderColor: '#3D2933',
+    backgroundColor: '#151014',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    overflow: 'hidden',
   },
-  nightOutHeading: {
-    flex: 1,
-  },
-  planButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-  },
-  planButtonText: {
-    color: colors.text,
-    fontWeight: '800',
-  },
-  noNightOutCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  noNightOutTitle: {
-    color: colors.text,
-    fontWeight: '700',
-    marginTop: spacing.sm,
-  },
-  noNightOutText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  nightOutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  nightOutIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.accentSoft,
+  planDate: {
+    width: 58,
+    alignSelf: 'stretch',
+    backgroundColor: '#25151E',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
-  nightOutInfo: {
+  planMonth: {
+    color: '#E0AFC2',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  planDay: {
+    color: '#F7DDE7',
+    fontFamily: 'Georgia',
+    fontSize: 23,
+    lineHeight: 26,
+    fontWeight: '700',
+  },
+  planInfo: {
     flex: 1,
+    paddingHorizontal: 12,
   },
-  nightOutName: {
-    color: colors.text,
-    fontWeight: '800',
-    fontSize: 15,
+  planName: {
+    color: '#F6DDE6',
+    fontFamily: 'Georgia',
+    fontSize: 16,
+    fontWeight: '700',
   },
-  nightOutMeta: {
-    color: colors.textMuted,
-    fontSize: 12,
+  planMeta: {
+    color: '#BAA8B0',
+    fontSize: 9,
     marginTop: 3,
   },
-  ownerActions: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+  emptyPlans: {
+    minHeight: 72,
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-  },
-  ownerActionHeader: {
+    borderColor: '#3D2933',
+    backgroundColor: '#151014',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
-  ownerActionText: {
+  emptyPlansCopy: {
     flex: 1,
-    marginLeft: spacing.sm,
   },
-  ownerActionTitle: {
-    color: colors.text,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  ownerActionSubtitle: {
-    color: colors.textMuted,
+  emptyPlansTitle: {
+    color: '#F6DDE6',
     fontSize: 13,
+    fontWeight: '700',
   },
-  inviteAction: {
+  emptyPlansText: {
+    color: '#AD99A2',
+    fontSize: 9,
+    marginTop: 2,
+  },
+
+  planNightButton: {
+    minHeight: 56,
+    borderRadius: 28,
+    backgroundColor: '#F594B9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.sm,
-    padding: spacing.md,
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
-  inviteActionText: {
-    color: colors.text,
+  planNightButtonText: {
+    color: '#140E12',
+    fontFamily: 'Georgia',
+    fontSize: 19,
     fontWeight: '700',
   },
-  errorCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
+
+  vibeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
   },
+  vibeTile: {
+    width: '31.5%',
+    overflow: 'hidden',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#3B2932',
+    backgroundColor: '#130E12',
+  },
+  vibeTileSelected: {
+    borderColor: '#FF4B9B',
+    borderWidth: 2,
+  },
+  vibeTileImage: {
+    width: '100%',
+    height: 56,
+  },
+  vibeTileFooter: {
+    minHeight: 31,
+    paddingHorizontal: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  vibeTileText: {
+    color: '#BCA7B0',
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  vibeTileTextSelected: {
+    color: '#F6DDE6',
+  },
+
+  homeSafeCard: {
+    minHeight: 92,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#3F2934',
+    backgroundColor: '#171116',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  homeSafeIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#2B1622',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  homeSafeCopy: {
+    flex: 1,
+  },
+  homeSafeTitle: {
+    color: '#F6DDE6',
+    fontFamily: 'Georgia',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  homeSafeText: {
+    color: '#B9A6AE',
+    fontSize: 9,
+    lineHeight: 14,
+    marginTop: 4,
+  },
+
   errorTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '800',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    color: '#F6DDE6',
+    fontFamily: 'Georgia',
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: 12,
   },
   errorText: {
-    color: colors.textMuted,
-    lineHeight: 20,
+    color: '#BDAAB2',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 6,
+    maxWidth: 320,
   },
   retryButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    padding: spacing.md,
+    marginTop: 16,
+    minHeight: 44,
+    borderRadius: 22,
+    backgroundColor: '#F594B9',
+    paddingHorizontal: 22,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    justifyContent: 'center',
   },
   retryButtonText: {
-    color: colors.text,
+    color: '#140E12',
     fontWeight: '800',
   },
 });
