@@ -29,7 +29,8 @@
         {
           "locationWhenInUsePermission": "Get In Bitches uses your location to set your pickup point and, if you're driving, to show riders where you are."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
