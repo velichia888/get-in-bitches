@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRootNavigationState, useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/auth-context';
 import {
   listMyCrews,
   listNightOuts,
@@ -12,7 +13,11 @@ const sleep = (ms: number) =>
 
 export default function TestAutomationRunner() {
   const router = useRouter();
+  const navigationState = useRootNavigationState();
+  const { session, loading } = useAuth();
   const [status, setStatus] = useState('idle');
+  const signingIn = useRef(false);
+  const tourStarted = useRef(false);
 
   useEffect(() => {
     if (process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1') {
@@ -24,30 +29,57 @@ export default function TestAutomationRunner() {
     const crewName = process.env.EXPO_PUBLIC_DEMO_CREW_NAME;
     const nightOutName = process.env.EXPO_PUBLIC_DEMO_NIGHT_OUT_NAME;
 
-    async function run() {
-      if (!email || !password || !crewName || !nightOutName) {
-        setStatus('CONFIG ERROR: screenshot environment is incomplete');
+    if (!email || !password || !crewName || !nightOutName) {
+      setStatus('CONFIG ERROR: screenshot environment is incomplete');
+      return;
+    }
+
+    if (loading || !navigationState?.key) {
+      setStatus('waiting for app navigation');
+      return;
+    }
+
+    if (!session) {
+      if (signingIn.current) {
         return;
       }
 
+      signingIn.current = true;
       setStatus('signing in to screenshot account');
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      void supabase.auth
+        .signInWithPassword({ email, password })
+        .then(({ data, error }) => {
+          if (error || !data.user) {
+            setStatus(
+              `SIGN-IN FAILED: ${error?.message ?? 'no user returned'}`
+            );
+          }
+        })
+        .catch((err) => {
+          setStatus(`SIGN-IN FAILED: ${String(err)}`);
+        })
+        .finally(() => {
+          signingIn.current = false;
+        });
 
-      if (error || !data.user) {
-        setStatus(
-          `SIGN-IN FAILED: ${error?.message ?? 'no user returned'}`
-        );
-        return;
-      }
+      return;
+    }
+
+    if (tourStarted.current) {
+      return;
+    }
+
+    tourStarted.current = true;
+    const userId = session.user.id;
+
+    async function runTour() {
+      setStatus('verifying screenshot account');
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', data.user.id)
+        .eq('id', userId)
         .single();
 
       if (profileError) {
@@ -79,6 +111,10 @@ export default function TestAutomationRunner() {
         setStatus(`SEED ERROR: Night Out "${nightOutName}" not found`);
         return;
       }
+
+      // Let the authenticated Tabs tree finish mounting before the
+      // screenshot-only tour takes control of navigation.
+      await sleep(1200);
 
       setStatus('STAGE_1_CREWS');
       router.replace('/(app)/crews');
@@ -119,10 +155,11 @@ export default function TestAutomationRunner() {
       setStatus('TOUR_COMPLETE');
     }
 
-    run().catch((err) => {
+    void runTour().catch((err) => {
+      tourStarted.current = false;
       setStatus(`CRASHED: ${String(err)}`);
     });
-  }, [router]);
+  }, [loading, navigationState?.key, router, session]);
 
   if (process.env.EXPO_PUBLIC_IOS_TEST_AUTOMATION !== '1') {
     return null;
