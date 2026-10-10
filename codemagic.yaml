@@ -10,9 +10,9 @@ workflows:
     environment:
       ios_signing:
         certificates:
-          - GIB App Store Distribution
+          - gib_app_store_2026
         provisioning_profiles:
-          - gib_app_store
+          - gib_app_store_2026 2
 
       vars:
         BUNDLE_ID: com.getinbitches.app
