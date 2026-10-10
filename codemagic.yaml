@@ -9,8 +9,10 @@ workflows:
 
     environment:
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.getinbitches.app
+        certificates:
+          - GIB App Store Distribution
+        provisioning_profiles:
+          - gib_app_store
 
       vars:
         BUNDLE_ID: com.getinbitches.app
