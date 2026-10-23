@@ -40,7 +40,7 @@ Record from launch through sign-in, Crews, creating/entering a Night Out, partic
 
 ## Release and reviewer handoff
 - [ ] Record pass/fail per step, including screenshots/video references and any issues fixed.
-- [ ] Verify actual deployed migration history and all four Crew-related tables/permissions after Supabase restoration.
+- [x] Read-only verification of live migration history `0001`–`0003`, all four Crew-related tables and enabled RLS after restoration (not a replacement for functional negative-access tests).
 - [ ] Run two-user negative RLS checks on an isolated test environment (a team member must not access another private Crew or mutate another's Home Safe status).
 - [ ] Verify correct deployed Edge Function for account deletion, and explicitly test on fictional accounts.
 - [ ] Supply reviewer setup instructions for both rider and driver roles, including fake Crew invitation/setup and realistic test vehicle/driver status. If functionality is unavailable in some regions, disclose actual limits.
@@ -53,4 +53,4 @@ Record from launch through sign-in, Crews, creating/entering a Night Out, partic
 - `npx expo export --platform ios`: successful Hermes bundle (not an installable IPA).
 - Five source-contract tests: passed.
 - GitHub Actions nondeploying source-qualification workflow: passed on audit branch.
-- Current live Supabase status and migration checks: **pending restoration** (project was INACTIVE, restore accepted; last reported COMING_UP). Do not label end-to-end tests passed yet.
+- Live Supabase restored to **ACTIVE_HEALTHY**; migrations `0001`–`0003` and Crew-related RLS were verified read-only. The security advisor produced findings documented in `06_GIB_SUPABASE_RESTORE_SECURITY_20261023.md`. End-to-end testing has not passed yet.
