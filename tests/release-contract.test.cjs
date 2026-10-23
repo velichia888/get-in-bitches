@@ -108,6 +108,9 @@ test('screenshot build validates protected demo credentials without exposing the
   assert.match(simulator, /values hidden/);
   assert.match(simulator, /gibscreenshot\\.demo@gmail\\.com/);
   assert.match(simulator, /Retired demo account is blocked/);
+  const runner = get('components/TestAutomationRunner.tsx');
+  assert.match(runner, /email\.trim\(\)\.toLowerCase\(\) === 'gibscreenshot\.demo@gmail\.com'/);
+  assert.match(runner, /retired screenshot account is prohibited/);
   assert.doesNotMatch(simulator, /console\.log\(.*process\.env\.(EXPO_PUBLIC_DEMO_EMAIL|EXPO_PUBLIC_DEMO_PASSWORD)/);
   const release = yaml.split('  ios-app-store:')[1].split('  ios-simulator:')[0];
   assert.doesNotMatch(release, /- ios_test/);
