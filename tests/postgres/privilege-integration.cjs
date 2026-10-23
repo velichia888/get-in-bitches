@@ -27,8 +27,10 @@ async function expectDenied(f,name){let denied=false;try{await f()}catch(e){deni
     "('"+A+"','{\"full_name\":\"Alice Test\"}'),('"+B+"','{\"full_name\":\"Briana Test\"}'),('"+C+"','{\"full_name\":\"Casey Test\"}')");
   assert((await sql('select count(*)::int as n from public.profiles'))[0].n===3,'user signup trigger created three profiles');
   await db.exec("update public.profiles set phone='5551230002' where id='"+B+"'");
+  await db.exec("update public.profiles set role='driver' where id='"+B+"'");
   await apply('20261023074008_tighten_gib_rpc_privileges.sql');
   await apply('20261023075907_restrict_home_safe_to_participant.sql');
+  await apply('20261023080717_enforce_ride_lifecycle_authorization.sql');
   const privileges=await sql("select has_function_privilege('anon','public.get_my_private_profile()','EXECUTE') as anon,has_function_privilege('authenticated','public.get_my_private_profile()','EXECUTE') as auth");
   assert(privileges[0].anon===false && privileges[0].auth===true,'private-profile RPC anonymous denied, authenticated retained');
   for(const name of ['add_crew_owner_as_member','handle_new_user','set_updated_at','set_participant_status_updated_at','protect_participant_identity']){
@@ -62,7 +64,22 @@ async function expectDenied(f,name){let denied=false;try{await f()}catch(e){deni
   assert((await sql("select count(*)::int as n from public.night_out_participants where night_out_id='"+outing+"'"))[0].n===2,'Night Out includes both participants');
   await sql("update public.crews set name='Night Owls Updated' where id='"+crewId+"'");
   assert((await sql("select name from public.crews where id='"+crewId+"'"))[0].name==='Night Owls Updated','updated-at Crew trigger remains functional');
+  const ride=(await sql("insert into public.rides(rider_id,pickup_lat,pickup_lng,pickup_address,dropoff_lat,dropoff_lng,dropoff_address,fare_estimate) values ('"+A+"',33.1,-112.1,'Fake Pickup',33.2,-112.2,'Fake Destination',100) returning id"))[0];
+  assert(!!ride.id,'rider may request a ride');
+  await expectDenied(()=>sql("update public.rides set fare_estimate=0 where id='"+ride.id+"'"),'rider cannot change quoted fare');
+  await expectDenied(()=>sql("update public.rides set status='completed' where id='"+ride.id+"'"),'rider cannot complete their own requested ride');
+  const cancelledRide=(await sql("insert into public.rides(rider_id,pickup_lat,pickup_lng,pickup_address,dropoff_lat,dropoff_lng,dropoff_address,fare_estimate) values ('"+A+"',33.1,-112.1,'Fake Pickup',33.2,-112.2,'Fake Destination',12) returning id"))[0];
+  assert((await sql("update public.rides set status='cancelled' where id='"+cancelledRide.id+"' returning status"))[0].status==='cancelled','rider can cancel an unclaimed ride');
+  await as(C);
+  await expectDenied(()=>sql("update public.rides set driver_id='"+C+"',status='matched' where id='"+ride.id+"'"),'rider-role account cannot claim ride as driver');
+  await as(A);
   await as(B);
+  const claim=await sql("update public.rides set driver_id='"+B+"',status='matched' where id='"+ride.id+"' returning status, matched_at");
+  assert(claim.length===1 && claim[0].status==='matched' && claim[0].matched_at,'driver-role account claims open ride');
+  assert((await sql("update public.rides set status='in_progress' where id='"+ride.id+"' returning status"))[0].status==='in_progress','assigned driver can start matched ride');
+  const completedRide=await sql("update public.rides set status='completed' where id='"+ride.id+"' returning status,completed_at");
+  assert(completedRide.length===1 && completedRide[0].completed_at,'assigned driver can complete started ride');
+  await expectDenied(()=>sql("update public.rides set status='requested' where id='"+ride.id+"'"),'completed ride cannot be reopened');
   assert((await sql("select count(*)::int as n from public.crews"))[0].n===1,'Crew member can read their Crew');
   const updated=await sql("update public.night_out_participants set safety_status='home_safe' where night_out_id='"+outing+"' and profile_id='"+B+"' returning safety_status,status_updated_at");
   assert(updated.length===1 && updated[0].safety_status==='home_safe','member can mark self Home Safe');
@@ -87,4 +104,3 @@ async function expectDenied(f,name){let denied=false;try{await f()}catch(e){deni
   console.log('RESULT '+checks.length+'/'+checks.length+' PASS — isolated PGlite PostgreSQL 17; no production data');
  } finally {await db.close();}
 })().catch(e=>{console.error('INTEGRATION FAILED:',e.message);process.exitCode=1});
-
