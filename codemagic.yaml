@@ -187,6 +187,19 @@ workflows:
       cocoapods: default
 
     scripts:
+      - name: Validate screenshot credentials
+        script: |
+          node <<'JS'
+          const names = ['EXPO_PUBLIC_DEMO_EMAIL', 'EXPO_PUBLIC_DEMO_PASSWORD'];
+          const missing = names.filter((name) => !process.env[name]);
+          if (missing.length) {
+            console.error('Missing screenshot-only credentials: ' + missing.join(', '));
+            process.exitCode = 1;
+          } else {
+            console.log('Screenshot account credentials are configured (values hidden).');
+          }
+          JS
+
       - name: Install dependencies
         script: |
           npm ci
