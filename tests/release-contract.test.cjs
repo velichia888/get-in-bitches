@@ -74,3 +74,13 @@ test('proposed Supabase RPC hardening is narrowly scoped and not an app-wide rev
   assert.doesNotMatch(sql, /revoke\s+execute\s+on\s+all\s+functions/i);
   assert.doesNotMatch(sql, /drop\s+(table|function|schema)/i);
 });
+
+test('Home Safe requires participant self-confirmation rather than creator impersonation', () => {
+  const formerPolicy = get('supabase/migrations/0002_crew_safety.sql');
+  const tightening = get('supabase/migrations/20261023075907_restrict_home_safe_to_participant.sql');
+  assert.match(formerPolicy, /create policy "night out creators update participants"/);
+  assert.match(formerPolicy, /create policy "participants update their own safety status"/);
+  assert.match(tightening, /drop policy if exists "night out creators update participants"/);
+  assert.doesNotMatch(tightening, /drop policy.*"participants update their own safety status"/);
+  assert.doesNotMatch(tightening, /delete from|truncate|drop table/i);
+});
