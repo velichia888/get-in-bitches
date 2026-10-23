@@ -98,3 +98,15 @@ test('ride lifecycle protects route/fare and assigns transitions by role', () =>
   assert.match(screen, /\.maybeSingle\(\)/);
   assert.match(screen, /userId === ride\.rider_id \|\| isDriver/);
 });
+
+test('screenshot build validates protected demo credentials without exposing their values', () => {
+  const yaml = get('codemagic.yaml');
+  const simulator = yaml.split('  ios-simulator:')[1];
+  assert.ok(simulator, 'Missing simulator workflow');
+  assert.match(simulator, /Validate screenshot credentials/);
+  assert.match(simulator, /process\.env\[name\]/);
+  assert.match(simulator, /values hidden/);
+  assert.doesNotMatch(simulator, /console\.log\(.*process\.env\.(EXPO_PUBLIC_DEMO_EMAIL|EXPO_PUBLIC_DEMO_PASSWORD)/);
+  const release = yaml.split('  ios-app-store:')[1].split('  ios-simulator:')[0];
+  assert.doesNotMatch(release, /- ios_test/);
+});
