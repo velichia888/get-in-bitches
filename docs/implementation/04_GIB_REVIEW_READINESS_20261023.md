@@ -31,7 +31,7 @@ Audit branch: `audit/gib-app-review-20261023`
 - Preserve existing Supabase data and deployed Edge Functions. Do not deploy unqualified RLS or grant public select for private profile information.
 
 ## Gates before asking Apple for reconsideration or resubmitting
-1. Check the current Car? **No: specifically GIB** App Store Connect review status and any reply to October 17 answer. Record Apple submission/build IDs.
+1. Check the current **Get In Bitches** App Store Connect review status and any reply to the October 17 answer. Record Apple submission/build IDs.
 2. Restore/check project only with permission, then verify deployed schema, authentication, scoped RLS, and functions. Confirm that frontend data calls return correct members/status without exposing phone details.
 3. Test with 2+ distinct fictional participants: Crew create/invite, Night Out creation/participant selection, Ride association and Get Us Home, independent safety status transitions, and Home Safe completion, plus deleted/blocked user handling.
 4. Validate actual iPhone behavior: permissions and location prompts, authentication, offline/reconnect, status re-open/persistence, deep links, app icon, accessibility, and crash monitoring.
