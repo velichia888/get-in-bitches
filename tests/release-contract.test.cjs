@@ -84,3 +84,17 @@ test('Home Safe requires participant self-confirmation rather than creator imper
   assert.doesNotMatch(tightening, /drop policy.*"participants update their own safety status"/);
   assert.doesNotMatch(tightening, /delete from|truncate|drop table/i);
 });
+
+test('ride lifecycle protects route/fare and assigns transitions by role', () => {
+  const sql = get('supabase/migrations/20261023080717_enforce_ride_lifecycle_authorization.sql');
+  assert.match(sql, /create or replace function public\.enforce_ride_lifecycle_authorization\(\)/);
+  assert.match(sql, /new\.fare_estimate/);
+  assert.match(sql, /actor_is_driver/);
+  assert.match(sql, /old\.status = 'requested'/);
+  assert.match(sql, /new\.status = 'completed'/);
+  assert.match(sql, /create trigger rides_lifecycle_authorization_guard/);
+  const screen = get('app/(app)/ride/[id]/index.tsx');
+  assert.match(screen, /Alert\.alert\(/);
+  assert.match(screen, /\.maybeSingle\(\)/);
+  assert.match(screen, /userId === ride\.rider_id \|\| isDriver/);
+});
