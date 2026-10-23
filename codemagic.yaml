@@ -195,8 +195,14 @@ workflows:
           if (missing.length) {
             console.error('Missing screenshot-only credentials: ' + missing.join(', '));
             process.exitCode = 1;
+          } else if (
+            process.env.EXPO_PUBLIC_DEMO_EMAIL.trim().toLowerCase() ===
+            'gibscreenshot.demo@gmail.com'
+          ) {
+            console.error('Retired demo account is blocked. Configure a new, controlled inbox in ios_test.');
+            process.exitCode = 1;
           } else {
-            console.log('Screenshot account credentials are configured (values hidden).');
+            console.log('Replacement screenshot credentials configured (values hidden).');
           }
           JS
 
