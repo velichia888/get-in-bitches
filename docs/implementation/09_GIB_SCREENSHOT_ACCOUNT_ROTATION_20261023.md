@@ -1,5 +1,5 @@
 # GIB screenshot-demo account retirement and replacement
-Date: 2026-10-23. Status: **REPLACEMENT REQUIRED; OLD ACCOUNT NOT YET BANNED**.
+Date: 2026-10-23. Status: **OLD ACCOUNT BANNED AND VERIFIED; REPLACEMENT ACCOUNT PENDING**.
 
 ## Identified account / risk
 - The earlier `main` revision of `codemagic.yaml` embedded a screenshot-only demo user's email and password.
@@ -11,13 +11,13 @@ Date: 2026-10-23. Status: **REPLACEMENT REQUIRED; OLD ACCOUNT NOT YET BANNED**.
 ## Owner confirmed they do NOT control the old screenshot mailbox
 - Do **not** send a password recovery link to `gibscreenshot.demo@gmail.com`. The inbox is not controlled by the owner.
 - `codemagic.yaml` now refuses to run screenshot builds when the configured demo email is the retired address. The preflight does not print the email or password values.
-- The old account is still present as of the last Supabase Auth check. **Source blocking does not deactivate that Supabase user**.
+- The old account remains present but is **now banned in Supabase Auth**. Source blocking and Auth ban are both in place.
 
-## Immediate action: ban compromised demo account (preserve data)
+## Completed: ban compromised demo account (preserve data)
 1. Open [GIB Supabase Authentication → Users](https://supabase.com/dashboard/project/xeyfdyzspspcmyrhqmnb/auth/users).
 2. Search for `gibscreenshot.demo@gmail.com` and open **that exact user**, checking its email before taking any action.
 3. In the user's panel under **Danger Zone**, use **Ban user** if available and choose a long duration/maximum supported. This is safer than deleting an account with foreign-key relationships because it preserves the Crew/Night Out demo data for review. **Do not ban any other user.**
-4. Confirm the UI reports the account banned; this remains a manual step until recorded and verified. Banning blocks future sign-in/refresh, but existing stateless JWT access tokens may remain valid until expiration. Do not assume instant session invalidation.
+4. **Verified October 23, 2026 by read-only Supabase query:** exactly one user matched the retired email; its `banned_until` value is **2029-07-19 08:44:53 UTC** and `banned_until > now()` was true. The owner chose a 1000-day ban. This blocks future sign-ins/refresh, but existing stateless JWT access tokens may remain valid until expiration. Do not assume instant session invalidation.
 
 ## Replace with a dedicated, controlled test user
 1. Choose a new email inbox you control. A Gmail plus-address alias (e.g. `yourname+gibdemo@gmail.com`) can work if your provider delivers those messages to you. Do not use another person's address.
@@ -30,7 +30,7 @@ Date: 2026-10-23. Status: **REPLACEMENT REQUIRED; OLD ACCOUNT NOT YET BANNED**.
 Supabase added **Ban user** to the Auth Users details panel Danger Zone in its [October 2024 Dashboard changelog](https://supabase.com/changelog/29710-dashboard-updates-23-09-24-07-10-24). If the current UI wording differs, use the user detail panel's ban control; do not substitute raw writes into the `auth` schema.
 
 ## Evidence to capture without secrets
-- Old test account ban confirmed: **PENDING OWNER ACTION**.
+- Old test account ban: **VERIFIED ACTIVE through 2029-07-19 08:44:53 UTC**.
 - Replacement account invited, verified, seeded: **PENDING**; Codemagic `ios_test` updated: **PENDING**.
 - Simulator screenshot test pass on refreshed credentials: pending.
 - Build does not print credential variables or include screenshot-only secrets in a signed distribution: source-audit and binary checks still required.
