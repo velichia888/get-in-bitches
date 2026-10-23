@@ -19,9 +19,9 @@ Audit branch: `audit/gib-app-review-20261023`
 - Added a non-deploying `.github/workflows/gib-source-qualification.yml` to repeat npm, TypeScript, source checks, and iOS JS bundling on this audit branch. Its current-run result should be inspected separately.
 
 ## Critical backend finding — do not publish
-- Connected Supabase project **Get In Bitches** (`xeyfdyzspspcmyrhqmnb`) reported **INACTIVE** on October 23. Read-only table and migration listing failed with database connection timeouts. This means **live data/RLS/API functionality cannot currently be accepted as operational**.
+- Connected Supabase project **Get In Bitches** (`xeyfdyzspspcmyrhqmnb`) was **INACTIVE** on October 23. The owner approved restoration; Supabase later reported **ACTIVE_HEALTHY**. Read-only database checks now show migrations `0001`, `0002`, `0003` and enabled RLS on the four Crew-related tables. This is **schema availability, not end-to-end client acceptance**.
 - The source contains RLS declarations for crews, crew_members, night_outs and night_out_participants plus functions used by Crew invitations and private profile reads. Source-level presence does not establish that migrations `0002` and `0003` were applied to production.
-- Ask the owner before restoring/reactivating the production Supabase project or running any migration. Once active, verify current schema/migration history, storage, project security advisors, RLS negative access tests, and sample Crew/Night Out flow using fake data. Never apply migrations blind just to get the app through review.
+- Restoration was approved and completed without applying migrations. A follow-up security baseline and proposed, **not deployed** RPC hardening migration are recorded in `docs/implementation/06_GIB_SUPABASE_RESTORE_SECURITY_20261023.md`. Negative RLS tests and fake-account Crew/Night Out acceptance remain open. Do not apply migration or alter Auth settings without approval.
 - If the app is still in App Store review, avoid changing operational behavior without a rollback plan and understanding the effect on existing users.
 
 ## Security / testing
