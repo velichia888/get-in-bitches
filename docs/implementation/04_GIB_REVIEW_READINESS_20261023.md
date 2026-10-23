@@ -5,7 +5,7 @@ Audit branch: `audit/gib-app-review-20261023`
 
 ## Apple review history
 - Previous reviewer feedback cited Guideline 4.3(a) and later 4.3(a)/(b) and 4.2.6, comparing the original GIB submission to common ride-request or templated apps.
-- Build 47 was reported submitted to Apple for iOS review on 2026-10-09; the owner submitted a detailed nine-answer reconsideration reply on October 17. This audit has **not** verified the latest live App Store Connect review status or whether Apple has answered that reply.
+- Build 47 was reported submitted to Apple for iOS review on 2026-10-09; the owner submitted a detailed nine-answer reconsideration reply on October 16. This audit has **not** verified the latest live App Store Connect review status or whether Apple has answered that reply.
 - Do not resubmit an unchanged/rejected binary, repeat the October 17 explanation as though new, or claim Apple has accepted the latest improvements without explicit review evidence.
 - The standalone product's distinctive loop is **Crews → Night Out → Get Us Home → Home Safe**. It coordinates known members of a private group across a night out, associated transport, dropoff and the final Home Safe state. It should never be represented merely as a conventional one-off ride request.
 
@@ -31,7 +31,7 @@ Audit branch: `audit/gib-app-review-20261023`
 - Preserve existing Supabase data and deployed Edge Functions. Do not deploy unqualified RLS or grant public select for private profile information.
 
 ## Gates before asking Apple for reconsideration or resubmitting
-1. Check the current **Get In Bitches** App Store Connect review status and any reply to the October 17 answer. Record Apple submission/build IDs.
+1. Check the current **Get In Bitches** App Store Connect review status and any reply to the October 16 answer. Record Apple submission/build IDs.
 2. Restore/check project only with permission, then verify deployed schema, authentication, scoped RLS, and functions. Confirm that frontend data calls return correct members/status without exposing phone details.
 3. Test with 2+ distinct fictional participants: Crew create/invite, Night Out creation/participant selection, Ride association and Get Us Home, independent safety status transitions, and Home Safe completion, plus deleted/blocked user handling.
 4. Validate actual iPhone behavior: permissions and location prompts, authentication, offline/reconnect, status re-open/persistence, deep links, app icon, accessibility, and crash monitoring.
