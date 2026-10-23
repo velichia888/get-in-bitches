@@ -53,3 +53,24 @@ test('normal App Store build does not enable screenshot automation', () => {
   assert.match(store, /submit_to_app_store:\s*false/);
   assert.match(store, /submit_to_testflight:\s*false/);
 });
+
+test('proposed Supabase RPC hardening is narrowly scoped and not an app-wide revoke', () => {
+  const sql = get('supabase/migrations/20261023074008_tighten_gib_rpc_privileges.sql');
+  const protectedFunctions = [
+    'add_crew_owner_as_member()', 'handle_new_user()',
+    'can_read_profile(uuid)', 'find_crew_invitee_by_phone(uuid, text)',
+    'get_my_private_profile()', 'set_updated_at()',
+    'set_participant_status_updated_at()', 'protect_participant_identity()'
+  ];
+  for (const fn of protectedFunctions) {
+    assert.ok(sql.includes('revoke execute on function public.' + fn), 'Unrestricted RPC: ' + fn);
+  }
+  for (const fn of ['can_read_profile(uuid)', 'find_crew_invitee_by_phone(uuid, text)', 'get_my_private_profile()']) {
+    assert.ok(sql.includes('grant execute on function public.' + fn), 'Required authenticated RPC not preserved: ' + fn);
+  }
+  for (const fn of ['set_updated_at()', 'set_participant_status_updated_at()', 'protect_participant_identity()']) {
+    assert.ok(sql.includes("alter function public." + fn + " set search_path = '';"), 'Search path not pinned: ' + fn);
+  }
+  assert.doesNotMatch(sql, /revoke\s+execute\s+on\s+all\s+functions/i);
+  assert.doesNotMatch(sql, /drop\s+(table|function|schema)/i);
+});
