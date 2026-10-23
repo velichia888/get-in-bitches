@@ -17,6 +17,9 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius } from '../../lib/theme';
 import { createRideRequest } from '../../lib/ride-service';
+import { resolveRideLocations } from '../../lib/ride-locations';
+import type { ResolvedRideLocations } from '../../lib/ride-locations';
+import RideLocationPreview from '../../components/RideLocationPreview';
 
 type Profile = {
   id: string;
@@ -42,6 +45,8 @@ export default function Home() {
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [resolvedLocations, setResolvedLocations] =
+    useState<ResolvedRideLocations | null>(null);
 
   const [isOnline, setIsOnline] = useState(false);
   const [openRides, setOpenRides] = useState<OpenRide[]>([]);
@@ -128,27 +133,34 @@ export default function Home() {
   }
 
   async function requestRide() {
-    if (!pickupAddress || !dropoffAddress) {
-      setRequestError('Enter both a pickup and dropoff address.');
-      return;
-    }
-
+    if (requesting) return;
     setRequesting(true);
     setRequestError(null);
-
+    setResolvedLocations(null);
     try {
-      const ride = await createRideRequest({
-        pickupAddress,
-        dropoffAddress,
-      });
+      setResolvedLocations(await resolveRideLocations(pickupAddress, dropoffAddress));
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : 'Unable to locate addresses.');
+    } finally {
+      setRequesting(false);
+    }
+  }
 
+  async function confirmRide() {
+    if (!resolvedLocations || requesting) return;
+    setRequesting(true);
+    setRequestError(null);
+    try {
+      const ride = await createRideRequest(
+        { pickupAddress, dropoffAddress },
+        resolvedLocations
+      );
+      setResolvedLocations(null);
       setPickupAddress('');
       setDropoffAddress('');
-      router.push(`/(app)/ride/${ride.id}`);
+      router.push('/(app)/ride/' + ride.id);
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'Unable to request a ride.'
-      );
+      setRequestError(error instanceof Error ? error.message : 'Unable to request a ride.');
     } finally {
       setRequesting(false);
     }
@@ -312,7 +324,12 @@ export default function Home() {
             placeholder="Pickup address"
             placeholderTextColor={colors.textSubtle}
             value={pickupAddress}
-            onChangeText={setPickupAddress}
+            onChangeText={(text) => {
+              setPickupAddress(text);
+              setResolvedLocations(null);
+              setRequestError(null);
+            }}
+            editable={!requesting}
           />
         </View>
 
@@ -324,26 +341,40 @@ export default function Home() {
             placeholder="Dropoff address"
             placeholderTextColor={colors.textSubtle}
             value={dropoffAddress}
-            onChangeText={setDropoffAddress}
+            onChangeText={(text) => {
+              setDropoffAddress(text);
+              setResolvedLocations(null);
+              setRequestError(null);
+            }}
+            editable={!requesting}
           />
         </View>
 
         {requestError ? <Text style={styles.error}>{requestError}</Text> : null}
 
+        {resolvedLocations ? (
+          <RideLocationPreview
+            locations={resolvedLocations}
+            submitting={requesting}
+            onConfirm={() => void confirmRide()}
+            onEdit={() => setResolvedLocations(null)}
+          />
+        ) : (
         <Pressable
           style={styles.primaryButton}
-          onPress={requestRide}
+          onPress={() => void requestRide()}
           disabled={requesting}
         >
           {requesting ? (
             <ActivityIndicator color={colors.ink} />
           ) : (
             <>
-              <Text style={styles.primaryButtonText}>REQUEST RIDE</Text>
+              <Text style={styles.primaryButtonText}>PREVIEW LOCATIONS</Text>
               <Ionicons name="arrow-forward" size={17} color={colors.ink} />
             </>
           )}
         </Pressable>
+        )}
       </View>
 
       <Pressable style={styles.crewCallout} onPress={() => router.push('/(app)/crews')}>
