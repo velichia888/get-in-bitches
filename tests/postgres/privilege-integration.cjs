@@ -28,6 +28,7 @@ async function expectDenied(f,name){let denied=false;try{await f()}catch(e){deni
   assert((await sql('select count(*)::int as n from public.profiles'))[0].n===3,'user signup trigger created three profiles');
   await db.exec("update public.profiles set phone='5551230002' where id='"+B+"'");
   await apply('20261023074008_tighten_gib_rpc_privileges.sql');
+  await apply('20261023075907_restrict_home_safe_to_participant.sql');
   const privileges=await sql("select has_function_privilege('anon','public.get_my_private_profile()','EXECUTE') as anon,has_function_privilege('authenticated','public.get_my_private_profile()','EXECUTE') as auth");
   assert(privileges[0].anon===false && privileges[0].auth===true,'private-profile RPC anonymous denied, authenticated retained');
   for(const name of ['add_crew_owner_as_member','handle_new_user','set_updated_at','set_participant_status_updated_at','protect_participant_identity']){
@@ -52,6 +53,12 @@ async function expectDenied(f,name){let denied=false;try{await f()}catch(e){deni
   const created=(await sql("select (public.create_night_out_with_participants('"+crewId+"','Test Night', 'Fictional Cafe',null,null,'Walk home',array['"+B+"'::uuid])).id as id"))[0];
   assert(!!created?.id,'atomic Night Out function runs for Crew owner');
   const outing=created.id;
+  const creatorOtherUpdate=await sql("update public.night_out_participants set safety_status='home_safe' where night_out_id='"+outing+"' and profile_id='"+B+"' returning safety_status");
+  assert(creatorOtherUpdate.length===0,'outing creator cannot mark a different member Home Safe');
+  const creatorSelfUpdate=await sql("update public.night_out_participants set safety_status='riding' where night_out_id='"+outing+"' and profile_id='"+A+"' returning safety_status");
+  assert(creatorSelfUpdate.length===1 && creatorSelfUpdate[0].safety_status==='riding','outing creator can still update own safety status');
+  const otherUnchanged=await sql("select safety_status from public.night_out_participants where night_out_id='"+outing+"' and profile_id='"+B+"'");
+  assert(otherUnchanged.length===1 && otherUnchanged[0].safety_status==='going','denied spoofing leaves other member status unchanged');
   assert((await sql("select count(*)::int as n from public.night_out_participants where night_out_id='"+outing+"'"))[0].n===2,'Night Out includes both participants');
   await sql("update public.crews set name='Night Owls Updated' where id='"+crewId+"'");
   assert((await sql("select name from public.crews where id='"+crewId+"'"))[0].name==='Night Owls Updated','updated-at Crew trigger remains functional');
