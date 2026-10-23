@@ -27,7 +27,7 @@ jobs:
       - name: Type-check the app
         run: npx tsc --noEmit --pretty false
       - name: Test release contract and CI isolation
-        run: node --test tests/release-contract.test.cjs
+        run: node --test tests/release-contract.test.cjs tests/ride-location.test.cjs
       - name: Install isolated PostgreSQL 17 test harness
         run: npm ci --prefix tests/postgres --ignore-scripts --no-audit --no-fund
       - name: Validate all four database migrations and Crew security behavior
