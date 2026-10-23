@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -85,7 +85,23 @@ export default function RideDetail() {
       patch.completed_at = new Date().toISOString();
     }
 
-    await supabase.from('rides').update(patch).eq('id', ride.id);
+    const { data, error } = await supabase
+      .from('rides')
+      .update(patch)
+      .eq('id', ride.id)
+      .select('id')
+      .maybeSingle();
+
+    if (error || !data) {
+      Alert.alert(
+        'Ride not updated',
+        error?.message ?? 'This ride has changed. Refresh and try again.'
+      );
+      await loadRide();
+      return;
+    }
+
+    await loadRide();
 
     if (status === 'completed') {
       router.replace(`/(app)/ride/${ride.id}/rate`);
@@ -220,7 +236,7 @@ export default function RideDetail() {
           </Pressable>
         ) : null}
 
-        {(ride.status === 'requested' || ride.status === 'matched') ? (
+        {(ride.status === 'requested' || ride.status === 'matched') && (userId === ride.rider_id || isDriver) ? (
           <Pressable style={styles.cancelButton} onPress={() => updateStatus('cancelled')}>
             <Text style={styles.cancelText}>Cancel ride</Text>
           </Pressable>
