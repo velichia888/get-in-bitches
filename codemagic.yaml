@@ -144,6 +144,165 @@ workflows:
         submit_to_testflight: false
         submit_to_app_store: false
 
+  # Run manually from Codemagic on the reviewed audit-branch commit.
+  # Publishing uploads the signed IPA to App Store Connect, but both
+  # beta review and App Store submission remain OFF. Add the processed
+  # build to an INTERNAL TestFlight group manually.
+  ios-recovery-internal:
+    name: Get In Bitches - Internal Recovery TestFlight
+    # Manual launch only; dedicated internal TestFlight build.
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: "Codemagic MINR"
+
+    environment:
+      ios_signing:
+        certificates:
+          - gib_app_store_2026
+        provisioning_profiles:
+          - gib_app_store_2026 2
+
+      vars:
+        BUNDLE_ID: com.getinbitches.app
+        # get-latest-app-store-build-number needs the numeric App Store
+        # Connect app id, not the bundle id - passing the bundle id 404s
+        # ("no resource of type 'apps' with id 'com.getinbitches.app'")
+        # and silently falls back to build number 1, colliding with any
+        # build already uploaded.
+        APP_STORE_CONNECT_APP_ID: "6806875083"
+        # Public/anon-scoped Supabase config - safe to keep in plain vars
+        # since access is governed by Row Level Security, not secrecy of
+        # these values. EXPO_PUBLIC_ prefix makes Expo inline them into
+        # the JS bundle at build time.
+        EXPO_PUBLIC_SUPABASE_URL: https://xeyfdyzspspcmyrhqmnb.supabase.co
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_6CN0UloP5qGirRVds3QzlQ_W64esp7p
+
+      node: v22.11.0
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Bump iOS build number
+        script: |
+          # get-latest-app-store-build-number only sees builds attached to
+          # an App Store *version* - none of ours ever were (they're just
+          # uploaded, standalone), so it always printed "Did not find
+          # latest build for app <id>" as its stdout. That non-numeric
+          # string got captured into the variable and silently broke the
+          # arithmetic down to 0, producing the same colliding build
+          # number every run. $PROJECT_BUILD_NUMBER is Codemagic's own
+          # monotonically increasing per-app counter - no Apple API
+          # lookup needed, and it can never collide or go backwards.
+          NEW_BUILD_NUMBER="$PROJECT_BUILD_NUMBER"
+          echo "Setting iOS build number to $NEW_BUILD_NUMBER"
+
+          NEW_BUILD_NUMBER="$NEW_BUILD_NUMBER" node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            config.expo.ios.buildNumber = process.env.NEW_BUILD_NUMBER;
+            fs.writeFileSync('app.json', JSON.stringify(config, null, 2) + '\n');
+          "
+
+      - name: Qualify password recovery before signing
+        script: |
+          npx tsc --noEmit
+          node --test tests/release-contract.test.cjs tests/ride-location.test.cjs tests/password-recovery.test.cjs
+
+      - name: Generate iOS project
+        script: |
+          npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+
+      - name: Detect workspace and scheme
+        script: |
+          WORKSPACE=$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+
+          echo "CM_XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
+          echo "CM_XCODE_SCHEME=$SCHEME" >> "$CM_ENV"
+
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme: $SCHEME"
+
+      - name: Apply App Store signing
+        script: |
+          # Prevent accidental external beta or App Store distribution.
+          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+
+          /usr/bin/plutil -convert xml1 "$HOME/export_options.plist"
+
+          /usr/bin/plutil \
+            -replace method \
+            -string app-store-connect \
+            "$HOME/export_options.plist"
+
+          echo "Validate export plist:"
+          /usr/bin/plutil -lint "$HOME/export_options.plist"
+          echo "Confirm TestFlight INTERNAL ONLY:"
+          /usr/libexec/PlistBuddy -c "Print :testFlightInternalTestingOnly" "$HOME/export_options.plist" | grep -qx true
+
+          echo "Export method:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :method" \
+            "$HOME/export_options.plist"
+
+      - name: Build signed IPA
+        script: |
+          set -euo pipefail
+
+          ARCHIVE_PATH="$CM_BUILD_DIR/build/ios/xcarchive/GetInBitches.xcarchive"
+          EXPORT_PATH="$CM_BUILD_DIR/build/ios/ipa"
+
+          mkdir -p "$(dirname "$ARCHIVE_PATH")"
+          mkdir -p "$EXPORT_PATH"
+
+          echo "Archiving $CM_XCODE_SCHEME..."
+
+          xcodebuild \
+            -workspace "$CM_XCODE_WORKSPACE" \
+            -scheme "$CM_XCODE_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            archive \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            DEVELOPMENT_TEAM=4357L599UW \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+
+          echo "Archive completed. Exporting IPA..."
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$HOME/export_options.plist"
+
+          echo "Export complete:"
+          ls -lah "$EXPORT_PATH"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
+
+
   # Produces real App Store screenshots from the actual running app,
   # replacing the fabricated marketing mockups that got the first
   # submission rejected. components/TestAutomationRunner.tsx (only active
@@ -187,6 +346,25 @@ workflows:
       cocoapods: default
 
     scripts:
+      - name: Validate screenshot credentials
+        script: |
+          node <<'JS'
+          const names = ['EXPO_PUBLIC_DEMO_EMAIL', 'EXPO_PUBLIC_DEMO_PASSWORD'];
+          const missing = names.filter((name) => !process.env[name]);
+          if (missing.length) {
+            console.error('Missing screenshot-only credentials: ' + missing.join(', '));
+            process.exitCode = 1;
+          } else if (
+            process.env.EXPO_PUBLIC_DEMO_EMAIL.trim().toLowerCase() ===
+            'gibscreenshot.demo@gmail.com'
+          ) {
+            console.error('Retired demo account is blocked. Configure a new, controlled inbox in ios_test.');
+            process.exitCode = 1;
+          } else {
+            console.log('Replacement screenshot credentials configured (values hidden).');
+          }
+          JS
+
       - name: Install dependencies
         script: |
           npm ci

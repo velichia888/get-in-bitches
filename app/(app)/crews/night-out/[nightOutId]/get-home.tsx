@@ -19,6 +19,9 @@ import {
 import { getCrew, getNightOut } from '../../../../../lib/crew-service';
 import type { Crew, NightOut } from '../../../../../lib/crew-types';
 import { createRideRequest } from '../../../../../lib/ride-service';
+import { resolveRideLocations } from '../../../../../lib/ride-locations';
+import type { ResolvedRideLocations } from '../../../../../lib/ride-locations';
+import RideLocationPreview from '../../../../../components/RideLocationPreview';
 import { colors, radius, spacing } from '../../../../../lib/theme';
 
 export default function GetUsHomeScreen() {
@@ -38,6 +41,8 @@ export default function GetUsHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resolvedLocations, setResolvedLocations] =
+    useState<ResolvedRideLocations | null>(null);
 
   const load = useCallback(async () => {
     if (!nightOutId) {
@@ -78,32 +83,32 @@ export default function GetUsHomeScreen() {
   );
 
   async function handleRequestRide() {
-    if (!nightOutId || requesting) {
-      return;
-    }
-
-    if (!pickupAddress.trim() || !dropoffAddress.trim()) {
-      setError('Enter both where you are and where you are going.');
-      return;
-    }
-
+    if (!nightOutId || requesting) return;
     setRequesting(true);
     setError(null);
-
+    setResolvedLocations(null);
     try {
-      const ride = await createRideRequest({
-        pickupAddress,
-        dropoffAddress,
-        nightOutId,
-      });
-
-      router.push(`/(app)/ride/${ride.id}`);
+      setResolvedLocations(await resolveRideLocations(pickupAddress, dropoffAddress));
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Could not request your ride.'
+      setError(err instanceof Error ? err.message : 'Could not locate addresses.');
+    } finally {
+      setRequesting(false);
+    }
+  }
+
+  async function confirmRide() {
+    if (!nightOutId || !resolvedLocations || requesting) return;
+    setRequesting(true);
+    setError(null);
+    try {
+      const ride = await createRideRequest(
+        { pickupAddress, dropoffAddress, nightOutId },
+        resolvedLocations
       );
+      setResolvedLocations(null);
+      router.push('/(app)/ride/' + ride.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not request your ride.');
     } finally {
       setRequesting(false);
     }
@@ -216,7 +221,12 @@ export default function GetUsHomeScreen() {
           <TextInput
             style={styles.input}
             value={pickupAddress}
-            onChangeText={setPickupAddress}
+            onChangeText={(text) => {
+              setPickupAddress(text);
+              setResolvedLocations(null);
+              setError(null);
+            }}
+            editable={!requesting}
             placeholder="Enter pickup location"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="words"
@@ -233,7 +243,12 @@ export default function GetUsHomeScreen() {
           <TextInput
             style={styles.input}
             value={dropoffAddress}
-            onChangeText={setDropoffAddress}
+            onChangeText={(text) => {
+              setDropoffAddress(text);
+              setResolvedLocations(null);
+              setError(null);
+            }}
+            editable={!requesting}
             placeholder="Enter home or drop-off address"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="words"
@@ -256,6 +271,14 @@ export default function GetUsHomeScreen() {
             <Text style={styles.requestError}>{error}</Text>
           ) : null}
 
+          {resolvedLocations ? (
+            <RideLocationPreview
+              locations={resolvedLocations}
+              submitting={requesting}
+              onConfirm={() => void confirmRide()}
+              onEdit={() => setResolvedLocations(null)}
+            />
+          ) : (
           <Pressable
             style={[
               styles.requestButton,
@@ -274,11 +297,12 @@ export default function GetUsHomeScreen() {
                   color={colors.text}
                 />
                 <Text style={styles.requestButtonText}>
-                  Request Crew Ride
+                  Preview Ride Locations
                 </Text>
               </>
             )}
           </Pressable>
+          )}
 
           <Text style={styles.footerText}>
             This ride will be linked to {nightOut.name}.

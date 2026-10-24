@@ -47,6 +47,10 @@ export default function SignIn() {
         {loading ? <ActivityIndicator color={colors.text} /> : <Text style={styles.buttonText}>Sign In</Text>}
       </Pressable>
 
+      <Link href="/reset-password" style={styles.link}>
+        <Text style={styles.linkText}>Forgot password or accepted an invitation?</Text>
+      </Link>
+
       <Link href="/(auth)/sign-up" style={styles.link}>
         <Text style={styles.linkText}>Don't have an account? Sign up</Text>
       </Link>

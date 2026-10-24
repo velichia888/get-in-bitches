@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@electric-sql/pglite": "0.3.14"
+  },
+  "name": "gib-postgres-integration-tests",
+  "version": "1.0.0",
+  "private": true
+}
+

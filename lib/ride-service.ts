@@ -1,6 +1,5 @@
-import * as Location from 'expo-location';
-
 import { supabase } from './supabase';
+import type { ResolvedRideLocations } from './ride-locations';
 
 export type CreateRideRequestInput = {
   pickupAddress: string;
@@ -32,67 +31,9 @@ export type NightOutRide = {
 };
 
 
-function estimateFare(distanceMiles: number) {
-  const base = 3.5;
-  const perMile = 1.75;
-
-  return (
-    Math.round((base + distanceMiles * perMile) * 100) /
-    100
-  );
-}
-
-function haversineMiles(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-) {
-  const toRad = (degrees: number) =>
-    (degrees * Math.PI) / 180;
-
-  const earthRadiusMiles = 3958.8;
-  const latitudeDelta = toRad(lat2 - lat1);
-  const longitudeDelta = toRad(lng2 - lng1);
-
-  const a =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(longitudeDelta / 2) ** 2;
-
-  return (
-    earthRadiusMiles *
-    2 *
-    Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  );
-}
-
-async function getRideRequestPosition() {
-  // Permission prompts may remain unanswered, especially on web.
-  // Preserve the existing five-second fallback behavior so extracting
-  // this logic does not change the current rider experience.
-  const timeout = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), 5000);
-  });
-
-  return Promise.race([
-    (async () => {
-      const { status } =
-        await Location.requestForegroundPermissionsAsync();
-
-      if (status !== 'granted') {
-        return null;
-      }
-
-      return Location.getCurrentPositionAsync({});
-    })(),
-    timeout,
-  ]);
-}
-
 export async function createRideRequest(
-  input: CreateRideRequestInput
+  input: CreateRideRequestInput,
+  locations: ResolvedRideLocations
 ): Promise<CreatedRideRequest> {
   const {
     data: { user },
@@ -114,37 +55,25 @@ export async function createRideRequest(
     throw new Error('Enter both a pickup and dropoff address.');
   }
 
-  const position = await getRideRequestPosition();
-
-  const pickupLat = position?.coords.latitude ?? 34.05;
-  const pickupLng = position?.coords.longitude ?? -118.24;
-
-  // The existing v1 ride flow does not geocode the typed destination.
-  // Keep that behavior intact during extraction. Real geocoding remains
-  // separate from the Crew Safety differentiation milestone.
-  const dropoffLat = pickupLat + 0.03;
-  const dropoffLng = pickupLng + 0.03;
-
-  const distance = haversineMiles(
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng
-  );
-
-  const fareEstimate = estimateFare(distance);
+  // The user's map preview must match the request being saved.
+  if (
+    pickupAddress !== locations.pickupAddress ||
+    dropoffAddress !== locations.dropoffAddress
+  ) {
+    throw new Error('Addresses changed. Preview the locations again.');
+  }
 
   const { data, error } = await supabase
     .from('rides')
     .insert({
       rider_id: user.id,
-      pickup_lat: pickupLat,
-      pickup_lng: pickupLng,
+      pickup_lat: locations.pickup.latitude,
+      pickup_lng: locations.pickup.longitude,
       pickup_address: pickupAddress,
-      dropoff_lat: dropoffLat,
-      dropoff_lng: dropoffLng,
+      dropoff_lat: locations.dropoff.latitude,
+      dropoff_lng: locations.dropoff.longitude,
       dropoff_address: dropoffAddress,
-      fare_estimate: fareEstimate,
+      fare_estimate: null,
       night_out_id: input.nightOutId ?? null,
     })
     .select('id')

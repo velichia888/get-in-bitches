@@ -34,6 +34,11 @@ export default function TestAutomationRunner() {
       return;
     }
 
+    if (email.trim().toLowerCase() === 'gibscreenshot.demo@gmail.com') {
+      setStatus('CONFIG ERROR: retired screenshot account is prohibited');
+      return;
+    }
+
     if (loading || !navigationState?.key) {
       setStatus('waiting for app navigation');
       return;
