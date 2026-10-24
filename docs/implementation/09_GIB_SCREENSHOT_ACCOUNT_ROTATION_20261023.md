@@ -1,5 +1,5 @@
 # GIB screenshot-demo account retirement and replacement
-Date: 2026-10-23. Status: **OLD ACCOUNT BANNED AND VERIFIED; REPLACEMENT ACCOUNT PENDING**.
+Date: 2026-10-23. Status: **OLD ACCOUNT BANNED; NEW TEST ACCOUNT VERIFIED AND DEMO DATA SEEDED; CODEMAGIC SECRETS PENDING**.
 
 ## Identified account / risk
 - The earlier `main` revision of `codemagic.yaml` embedded a screenshot-only demo user's email and password.
@@ -19,19 +19,27 @@ Date: 2026-10-23. Status: **OLD ACCOUNT BANNED AND VERIFIED; REPLACEMENT ACCOUNT
 3. In the user's panel under **Danger Zone**, use **Ban user** if available and choose a long duration/maximum supported. This is safer than deleting an account with foreign-key relationships because it preserves the Crew/Night Out demo data for review. **Do not ban any other user.**
 4. **Verified October 23, 2026 by read-only Supabase query:** exactly one user matched the retired email; its `banned_until` value is **2029-07-19 08:44:53 UTC** and `banned_until > now()` was true. The owner chose a 1000-day ban. This blocks future sign-ins/refresh, but existing stateless JWT access tokens may remain valid until expiration. Do not assume instant session invalidation.
 
-## Replace with a dedicated, controlled test user
-1. Choose a new email inbox you control. A Gmail plus-address alias (e.g. `yourname+gibdemo@gmail.com`) can work if your provider delivers those messages to you. Do not use another person's address.
-2. In [Supabase Authentication → Users](https://supabase.com/dashboard/project/xeyfdyzspspcmyrhqmnb/auth/users), use **Add user → Send invitation** to invite the new email. Open the email yourself and set a unique random password in your password manager. Use no real personal transport, payment, or meeting details in the profile.
-3. Sign into a development/TestFlight build with that account and confirm it is a **rider** role. Set up (using the UI, with entirely fictional details) a Crew named **GIB Screenshot Crew** and a Night Out named **Girls Night Out**.
-4. The screenshot runner requires those exact seeded records owned by or accessible to the signed-in account. It never creates Crew/Night Out records itself. Without seed data, it will report `SEED ERROR` even if login works.
-5. In [Codemagic](https://codemagic.io/) for GIB, under environment group **ios_test**, set `EXPO_PUBLIC_DEMO_EMAIL` to the replacement address and `EXPO_PUBLIC_DEMO_PASSWORD` to the new password, stored as protected variables. Remove the old address and credential. Do not put either in committed YAML or chat.
-6. Trigger **only** the `ios-simulator` workflow on the qualified branch after verifying the new account, and confirm six screenshot stages without logging secrets. The `ios-app-store` workflow must not import `ios_test`.
+## Completed: accepted invitation and seeded a new account
+- On October 23, 2026, the owner confirmed the new invitation was accepted.
+- Read-only Auth inspection found one newly invited account created October 24 at 03:38 UTC, with confirmed email, successful sign-in, `rider` profile role and zero existing Crew memberships. Its actual email and password are **not stored** in this document.
+- In one atomic transaction, a separate fictional `GIB Screenshot Crew` was created with that replacement account as owner. The existing on-crew-created trigger added its owner membership.
+- `Girls Night Out` was seeded inside that new Crew with a fictional demo venue and transport description, a planned Halloween-night schedule, and only the owner's own participant row with status `going`. **No ride, payment, or real destination** was created.
+- A read-only post-write verification confirmed exactly one replacement Crew, one owner membership, one Night Out, one Going participant, zero rides for the new account, and the old account still banned.
+- This is application seed data only; **no migrations, RLS permissions, Edge Functions, or Auth password settings changed**.
+
+## Remaining owner action: set Codemagic protected test credentials
+1. Open [Codemagic](https://codemagic.io/) for Get In Bitches → Environment variables → group `ios_test`.
+2. Set `EXPO_PUBLIC_DEMO_EMAIL` to the **newly invited email you control** and `EXPO_PUBLIC_DEMO_PASSWORD` to the unique password you set when accepting its invitation. **Mark both secret** and remove any retired values.
+3. Leave `EXPO_PUBLIC_DEMO_CREW_NAME=GIB Screenshot Crew` and `EXPO_PUBLIC_DEMO_NIGHT_OUT_NAME=Girls Night Out` as configured in the simulator workflow.
+4. Do not paste either credential in GitHub, chat, build logs, or committed YAML. These variables are compiled into a **screenshot-only simulator binary** and must never be included in the App Store build.
+5. When protected variables are saved, qualify the `ios-simulator` workflow on the release-audit branch. Confirm all screenshot stages, account login, and absence of `CONFIG ERROR` / `SEED ERROR` before using any screenshots.
+6. Keep `ios-app-store` signing/upload and live backend deployments disabled until separately authorized.
 
 Supabase added **Ban user** to the Auth Users details panel Danger Zone in its [October 2024 Dashboard changelog](https://supabase.com/changelog/29710-dashboard-updates-23-09-24-07-10-24). If the current UI wording differs, use the user detail panel's ban control; do not substitute raw writes into the `auth` schema.
 
 ## Evidence to capture without secrets
 - Old test account ban: **VERIFIED ACTIVE through 2029-07-19 08:44:53 UTC**.
-- Replacement account invited, verified, seeded: **PENDING**; Codemagic `ios_test` updated: **PENDING**.
+- Replacement account accepted and fictional Crew/Night Out seeded: **VERIFIED**. Codemagic `ios_test` updated: **PENDING OWNER ACTION**.
 - Simulator screenshot test pass on refreshed credentials: pending.
 - Build does not print credential variables or include screenshot-only secrets in a signed distribution: source-audit and binary checks still required.
 
