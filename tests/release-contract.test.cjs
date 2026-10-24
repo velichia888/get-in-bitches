@@ -115,3 +115,18 @@ test('screenshot build validates protected demo credentials without exposing the
   const release = yaml.split('  ios-app-store:')[1].split('  ios-simulator:')[0];
   assert.doesNotMatch(release, /- ios_test/);
 });
+
+test('internal iPhone recovery build cannot auto-submit to external TestFlight or App Store', () => {
+  const source = get('codemagic.yaml');
+  const block = source.split('  ios-recovery-internal:')[1]?.split('  # Produces real App Store screenshots')[0];
+  assert.ok(block, 'Internal recovery workflow is missing');
+  assert.match(block, /testFlightInternalTestingOnly/);
+  assert.match(block, /Validate export plist/);
+  assert.match(block, /Confirm TestFlight INTERNAL ONLY/);
+  assert.match(block, /submit_to_testflight: false/);
+  assert.match(block, /submit_to_app_store: false/);
+  assert.match(block, /tests\/password-recovery\.test\.cjs/);
+  assert.doesNotMatch(block, /- ios_test/);
+  assert.match(block, /artifacts:/);
+  assert.match(block, /auth: integration/);
+});
